@@ -6,14 +6,14 @@
 <title>TaskFlow</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
-:root { --bg:#0f1117; --card:#1a1d27; --border:#2a2d3a; --text:#e1e4ed; --muted:#8b8fa3; --accent:#6366f1; --green:#22c55e; --amber:#f59e0b; --red:#ef4444; --blue:#3b82f6; }
+:root { --bg:#0f1117; --card:#1a1d27; --border:#2a2d3a; --text:#e1e4ed; --muted:#8b8fa3; --accent:#6366f1; --green:#22c55e; --amber:#f59e0b; --red:#ef4444; --blue:#3b82f6; --purple:#a855f7; }
 body { font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
-.container { max-width: 1240px; margin: 0 auto; padding: 0 20px; }
+.container { max-width: 1280px; margin: 0 auto; padding: 0 20px; }
 
 /* Login */
 #login-page { display:flex; align-items:center; justify-content:center; min-height:100vh; }
 .login-box { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:40px; width:100%; max-width:400px; }
-.login-box h1 { font-size:24px; margin-bottom:8px; display:flex; align-items:center; gap:8px; }
+.login-box h1 { font-size:24px; margin-bottom:8px; }
 .login-box h1 span { color:var(--accent); }
 .login-box p { color:var(--muted); margin-bottom:24px; }
 .form-group { margin-bottom:16px; }
@@ -32,17 +32,28 @@ body { font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-seri
 
 /* Header */
 header { background:var(--card); border-bottom:1px solid var(--border); padding:12px 0; position:sticky; top:0; z-index:10; }
-header .container { display:flex; align-items:center; justify-content:space-between; }
-header h1 { font-size:18px; display:flex; align-items:center; gap:6px; }
+header .container { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; }
+header h1 { font-size:18px; }
 header h1 span { color:var(--accent); }
 .user-bar { display:flex; align-items:center; gap:12px; }
 .user-bar .name { font-size:14px; }
 .user-bar .role { font-size:11px; color:var(--muted); background:var(--border); padding:2px 8px; border-radius:10px; }
 
-/* Toolbar */
-.toolbar { display:flex; align-items:center; gap:12px; padding:16px 0; flex-wrap:wrap; }
+/* Sidebar */
+.layout { display:flex; gap:0; min-height:calc(100vh - 56px); }
+.sidebar { width:220px; background:var(--card); border-right:1px solid var(--border); padding:16px; flex-shrink:0; }
+.sidebar h3 { font-size:12px; color:var(--muted); text-transform:uppercase; margin-bottom:8px; }
+.proj-item { display:flex; align-items:center; gap:8px; padding:8px; border-radius:6px; cursor:pointer; font-size:13px; margin-bottom:4px; }
+.proj-item:hover { background:var(--bg); }
+.proj-item.active { background:var(--accent); color:white; }
+.proj-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+.proj-count { margin-left:auto; font-size:11px; color:var(--muted); }
+.proj-item.active .proj-count { color:rgba(255,255,255,.7); }
+
+/* Main */
+.main { flex:1; padding:16px; }
+.toolbar { display:flex; align-items:center; gap:12px; padding-bottom:16px; flex-wrap:wrap; }
 .toolbar select { padding:8px 12px; background:var(--card); border:1px solid var(--border); border-radius:8px; color:var(--text); font-size:13px; }
-.toolbar select:focus { outline:none; border-color:var(--accent); }
 .spacer { flex:1; }
 
 /* Board */
@@ -50,30 +61,37 @@ header h1 span { color:var(--accent); }
 .col { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:12px; min-height:200px; }
 .col-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid var(--border); }
 .col-header h3 { font-size:14px; display:flex; align-items:center; gap:6px; }
-.dot { width:8px; height:8px; border-radius:50%; display:inline-block; }
+.dot { width:8px; height:8px; border-radius:50%; }
 .dot-todo { background:var(--muted); }
 .dot-progress { background:var(--amber); }
 .dot-done { background:var(--green); }
 .col-count { font-size:12px; color:var(--muted); background:var(--bg); padding:2px 8px; border-radius:10px; }
 
-/* Cards */
+/* Card */
 .card { background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:12px; margin-bottom:8px; cursor:pointer; transition:all .15s; }
 .card:hover { border-color:var(--accent); }
 .card-title { font-size:14px; font-weight:500; margin-bottom:4px; }
 .card-desc { font-size:12px; color:var(--muted); margin-bottom:8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.card-meta { display:flex; align-items:center; gap:8px; font-size:11px; }
-.priority { padding:1px 8px; border-radius:10px; font-size:10px; font-weight:500; }
+.card-meta { display:flex; align-items:center; gap:6px; font-size:11px; flex-wrap:wrap; }
+.tag { padding:1px 8px; border-radius:10px; font-size:10px; font-weight:500; }
 .p-high { background:rgba(239,68,68,.15); color:var(--red); }
 .p-medium { background:rgba(245,158,11,.15); color:var(--amber); }
 .p-low { background:rgba(59,130,246,.15); color:var(--blue); }
-.assignee-avatar { width:24px; height:24px; border-radius:50%; background:var(--accent); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:600; color:white; }
+.c-low { background:rgba(34,197,94,.15); color:var(--green); }
+.c-medium { background:rgba(168,85,247,.15); color:var(--purple); }
+.c-high { background:rgba(239,68,68,.15); color:var(--red); }
+.proj-tag { padding:1px 8px; border-radius:10px; font-size:10px; }
+.date-tag { font-size:10px; color:var(--muted); }
+.date-tag.urgent { color:var(--red); font-weight:600; }
+.assignee-avatar { width:24px; height:24px; border-radius:50%; background:var(--accent); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:600; color:white; margin-left:auto; }
 
 /* Modal */
 .modal-overlay { display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,.6); z-index:100; align-items:center; justify-content:center; }
 .modal-overlay.active { display:flex; }
-.modal { background:var(--card); border:1px solid var(--border); border-radius:12px; width:100%; max-width:520px; max-height:90vh; overflow-y:auto; padding:24px; }
+.modal { background:var(--card); border:1px solid var(--border); border-radius:12px; width:100%; max-width:560px; max-height:90vh; overflow-y:auto; padding:24px; }
 .modal h2 { font-size:18px; margin-bottom:16px; }
 .modal-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:20px; }
+.form-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
 
 /* Comments */
 .comments { margin-top:16px; border-top:1px solid var(--border); padding-top:12px; }
@@ -83,36 +101,28 @@ header h1 span { color:var(--accent); }
 .comment-text { font-size:13px; margin-top:2px; }
 .comment-time { font-size:10px; color:var(--muted); }
 
-/* Tabs */
-.tabs { display:flex; gap:0; margin-bottom:20px; border-bottom:1px solid var(--border); }
-.tab { padding:8px 16px; cursor:pointer; font-size:14px; color:var(--muted); border-bottom:2px solid transparent; }
-.tab:hover { color:var(--text); }
-.tab.active { color:var(--accent); border-bottom-color:var(--accent); }
-
 .empty { text-align:center; color:var(--muted); padding:40px 20px; font-size:14px; }
 .toast { position:fixed; bottom:20px; right:20px; background:var(--green); color:black; padding:10px 20px; border-radius:8px; font-size:13px; z-index:200; display:none; }
 .toast.error { background:var(--red); color:white; }
 
-@media (max-width:768px) { .board { grid-template-columns:1fr; } }
+@media (max-width:768px) { .board { grid-template-columns:1fr; } .sidebar { display:none; } .form-row { grid-template-columns:1fr; } }
 </style>
 </head>
 <body>
 
-<!-- Login Page -->
 <div id="login-page">
   <div class="login-box">
     <h1>⚡ <span>TaskFlow</span></h1>
-    <p>Gestión de tareas para equipos de desarrollo</p>
+    <p>Gestion de tareas para equipos</p>
     <form id="login-form">
       <div class="form-group"><label>Email</label><input type="email" id="login-email" required></div>
-      <div class="form-group"><label>Contraseña</label><input type="password" id="login-password" required></div>
+      <div class="form-group"><label>Contrasena</label><input type="password" id="login-password" required></div>
       <button type="submit" class="btn btn-primary btn-block">Entrar</button>
     </form>
     <p style="font-size:12px;color:var(--muted);margin-top:16px;text-align:center;">admin@taskflow.local / admin123</p>
   </div>
 </div>
 
-<!-- App -->
 <div id="app" style="display:none;">
   <header>
     <div class="container">
@@ -120,39 +130,44 @@ header h1 span { color:var(--accent); }
       <div class="user-bar">
         <span class="name" id="current-user"></span>
         <span class="role" id="current-role"></span>
+        <button class="btn btn-secondary btn-sm" onclick="showProjects()">📁 Proyectos</button>
         <button class="btn btn-secondary btn-sm" onclick="showUsers()">👥 Usuarios</button>
         <button class="btn btn-secondary btn-sm" onclick="logout()">Salir</button>
       </div>
     </div>
   </header>
-  <div class="container">
-    <div class="toolbar">
-      <button class="btn btn-primary" onclick="openNewTask()">+ Nueva tarea</button>
-      <select id="filter-status" onchange="loadTasks()">
-        <option value="all">Todos los estados</option>
-        <option value="todo">Por hacer</option>
-        <option value="in-progress">En progreso</option>
-        <option value="done">Completado</option>
-      </select>
-      <select id="filter-assignee" onchange="loadTasks()">
-        <option value="all">Todos los usuarios</option>
-      </select>
-      <div class="spacer"></div>
-      <span style="font-size:12px;color:var(--muted);" id="task-count"></span>
+  <div class="layout">
+    <div class="sidebar">
+      <h3>Proyectos</h3>
+      <div id="project-list"></div>
+      <button class="btn btn-secondary btn-sm btn-block" style="margin-top:8px;" onclick="openNewProject()">+ Nuevo</button>
     </div>
-
-    <div class="board">
-      <div class="col" id="col-todo" ondrop="drop(event,'todo')" ondragover="allowDrop(event)">
-        <div class="col-header"><h3><span class="dot dot-todo"></span> Por hacer</h3><span class="col-count" id="count-todo">0</span></div>
-        <div id="list-todo"></div>
+    <div class="main">
+      <div class="toolbar">
+        <button class="btn btn-primary" onclick="openNewTask()">+ Nueva tarea</button>
+        <select id="filter-status" onchange="loadTasks()">
+          <option value="all">Todos</option>
+          <option value="todo">Por hacer</option>
+          <option value="in-progress">En progreso</option>
+          <option value="done">Completado</option>
+        </select>
+        <select id="filter-assignee" onchange="loadTasks()"></select>
+        <div class="spacer"></div>
+        <span style="font-size:12px;color:var(--muted);" id="task-count"></span>
       </div>
-      <div class="col" id="col-in-progress" ondrop="drop(event,'in-progress')" ondragover="allowDrop(event)">
-        <div class="col-header"><h3><span class="dot dot-progress"></span> En progreso</h3><span class="col-count" id="count-in-progress">0</span></div>
-        <div id="list-in-progress"></div>
-      </div>
-      <div class="col" id="col-done" ondrop="drop(event,'done')" ondragover="allowDrop(event)">
-        <div class="col-header"><h3><span class="dot dot-done"></span> Completado</h3><span class="col-count" id="count-done">0</span></div>
-        <div id="list-done"></div>
+      <div class="board">
+        <div class="col" id="col-todo" ondrop="drop(event,'todo')" ondragover="allowDrop(event)">
+          <div class="col-header"><h3><span class="dot dot-todo"></span> Por hacer</h3><span class="col-count" id="count-todo">0</span></div>
+          <div id="list-todo"></div>
+        </div>
+        <div class="col" id="col-in-progress" ondrop="drop(event,'in-progress')" ondragover="allowDrop(event)">
+          <div class="col-header"><h3><span class="dot dot-progress"></span> En progreso</h3><span class="col-count" id="count-in-progress">0</span></div>
+          <div id="list-in-progress"></div>
+        </div>
+        <div class="col" id="col-done" ondrop="drop(event,'done')" ondragover="allowDrop(event)">
+          <div class="col-header"><h3><span class="dot dot-done"></span> Completado</h3><span class="col-count" id="count-done">0</span></div>
+          <div id="list-done"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -164,11 +179,24 @@ header h1 span { color:var(--accent); }
     <h2 id="modal-title">Nueva tarea</h2>
     <form id="task-form">
       <input type="hidden" id="task-id">
-      <div class="form-group"><label>Título</label><input type="text" id="task-title" required></div>
-      <div class="form-group"><label>Descripción</label><textarea id="task-desc"></textarea></div>
-      <div class="form-group"><label>Prioridad</label><select id="task-priority"><option value="low">Baja</option><option value="medium" selected>Media</option><option value="high">Alta</option></select></div>
-      <div class="form-group"><label>Estado</label><select id="task-status"><option value="todo">Por hacer</option><option value="in-progress">En progreso</option><option value="done">Completado</option></select></div>
-      <div class="form-group"><label>Asignado a</label><select id="task-assignee"><option value="">Sin asignar</option></select></div>
+      <div class="form-group"><label>Titulo</label><input type="text" id="task-title" required></div>
+      <div class="form-group"><label>Descripcion</label><textarea id="task-desc"></textarea></div>
+      <div class="form-row">
+        <div class="form-group"><label>Prioridad</label><select id="task-priority"><option value="low">Baja</option><option value="medium" selected>Media</option><option value="high">Alta</option></select></div>
+        <div class="form-group"><label>Complejidad</label><select id="task-complexity"><option value="low">Baja</option><option value="medium" selected>Media</option><option value="high">Alta</option></select></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Estado</label><select id="task-status"><option value="todo">Por hacer</option><option value="in-progress">En progreso</option><option value="done">Completado</option></select></div>
+        <div class="form-group"><label>Proyecto</label><select id="task-project"></select></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Asignado a</label><select id="task-assignee"></select></div>
+        <div class="form-group"><label>&nbsp;</label></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Fecha inicio</label><input type="date" id="task-start"></div>
+        <div class="form-group"><label>Fecha fin</label><input type="date" id="task-end"></div>
+      </div>
       <div class="modal-actions">
         <button type="button" class="btn btn-danger btn-sm" id="btn-delete-task" style="display:none;margin-right:auto;" onclick="deleteTask()">Eliminar</button>
         <button type="button" class="btn btn-secondary btn-sm" onclick="closeModal()">Cancelar</button>
@@ -179,10 +207,26 @@ header h1 span { color:var(--accent); }
       <h4 style="font-size:14px;margin-bottom:8px;">Comentarios</h4>
       <div id="comments-list"></div>
       <div style="display:flex;gap:6px;margin-top:8px;">
-        <input type="text" id="comment-input" placeholder="Añadir comentario..." style="flex:1;padding:8px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;">
+        <input type="text" id="comment-input" placeholder="Agregar comentario..." style="flex:1;padding:8px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;">
         <button class="btn btn-primary btn-sm" onclick="addComment()">Enviar</button>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- Project Modal -->
+<div class="modal-overlay" id="project-modal">
+  <div class="modal">
+    <h2>Nuevo proyecto</h2>
+    <form id="project-form">
+      <div class="form-group"><label>Nombre</label><input type="text" id="proj-name" required></div>
+      <div class="form-group"><label>Descripcion</label><textarea id="proj-desc"></textarea></div>
+      <div class="form-group"><label>Color</label><input type="color" id="proj-color" value="#6366f1" style="width:60px;height:40px;"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="closeProjectModal()">Cancelar</button>
+        <button type="submit" class="btn btn-primary btn-sm">Crear</button>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -191,13 +235,13 @@ header h1 span { color:var(--accent); }
   <div class="modal">
     <h2>👥 Usuarios</h2>
     <form id="user-form" style="margin-bottom:16px;">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <div class="form-row">
         <div class="form-group"><label>Nombre</label><input type="text" id="user-name" required></div>
         <div class="form-group"><label>Email</label><input type="email" id="user-email" required></div>
-        <div class="form-group"><label>Contraseña</label><input type="password" id="user-password" required></div>
+        <div class="form-group"><label>Contrasena</label><input type="password" id="user-password" required></div>
         <div class="form-group"><label>Rol</label><select id="user-role"><option value="dev">Desarrollador</option><option value="admin">Admin</option></select></div>
       </div>
-      <button type="submit" class="btn btn-primary btn-sm" style="margin-top:8px;">+ Añadir</button>
+      <button type="submit" class="btn btn-primary btn-sm">+ Agregar</button>
     </form>
     <div id="users-list"></div>
     <div class="modal-actions"><button class="btn btn-secondary btn-sm" onclick="closeUsers()">Cerrar</button></div>
@@ -210,110 +254,122 @@ header h1 span { color:var(--accent); }
 const API = '/api';
 let token = localStorage.getItem('taskflow_token');
 let currentUser = null;
+let currentProject = null;
+let projects = [];
 
-// ── Auth ──────────────────────────
-if (token) { checkToken(); }
+if (token) checkToken();
 
 document.getElementById('login-form').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const email = document.getElementById('login-email').value;
-  const password = document.getElementById('login-password').value;
-  const res = await fetch(API + '/login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email,password}) });
-  if (res.ok) {
-    const data = await res.json();
-    token = data.token;
-    currentUser = data.user;
-    localStorage.setItem('taskflow_token', token);
-    showApp();
-  } else {
-    toast('Credenciales inválidas', 'error');
-  }
+  const res = await fetch(API+'/login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ email: document.getElementById('login-email').value, password: document.getElementById('login-password').value }) });
+  if (res.ok) { const d = await res.json(); token = d.token; currentUser = d.user; localStorage.setItem('taskflow_token', token); showApp(); }
+  else toast('Credenciales invalidas', 'error');
 });
 
 async function checkToken() {
-  try {
-    const res = await fetch(API + '/me', { headers:{'Authorization':'Bearer '+token} });
-    if (res.ok) { currentUser = await res.json(); showApp(); }
-    else { logout(); }
-  } catch(e) { logout(); }
+  try { const r = await fetch(API+'/me', { headers:{Authorization:'Bearer '+token} }); if (r.ok) { currentUser = await r.json(); showApp(); } else logout(); }
+  catch(e) { logout(); }
 }
 
-function logout() { localStorage.removeItem('taskflow_token'); token = null; currentUser = null; document.getElementById('login-page').style.display='flex'; document.getElementById('app').style.display='none'; }
+function logout() { localStorage.removeItem('taskflow_token'); token=null; currentUser=null; document.getElementById('login-page').style.display='flex'; document.getElementById('app').style.display='none'; }
 
 function showApp() {
   document.getElementById('login-page').style.display='none';
   document.getElementById('app').style.display='block';
   document.getElementById('current-user').textContent = currentUser.name;
   document.getElementById('current-role').textContent = currentUser.role === 'admin' ? 'Admin' : 'Dev';
+  loadProjects();
   loadTasks();
   loadUsers();
 }
 
-// ── API helpers ────────────────────
 async function api(url, options = {}) {
-  const headers = { 'Authorization': 'Bearer ' + token, ...options.headers };
+  const headers = { 'Authorization': 'Bearer '+token, ...options.headers };
   if (options.body && typeof options.body === 'object') { headers['Content-Type'] = 'application/json'; options.body = JSON.stringify(options.body); }
-  return fetch(API + url, { ...options, headers });
+  return fetch(API+url, { ...options, headers });
 }
 
-// ── Tasks ──────────────────────────
+// ── Projects ───────────────────────────
+async function loadProjects() {
+  const res = await api('/projects');
+  if (!res.ok) return;
+  projects = await res.json();
+  renderSidebar();
+  // Populate task form
+  const sel = document.getElementById('task-project');
+  sel.innerHTML = '<option value="">Sin proyecto</option>';
+  projects.forEach(p => { sel.innerHTML += '<option value="'+p.id+'">'+esc(p.name)+'</option>'; });
+}
+
+function renderSidebar() {
+  const list = document.getElementById('project-list');
+  list.innerHTML = '<div class="proj-item'+(currentProject===null?' active':'')+'" onclick="selectProject(null)"><span class="proj-dot" style="background:var(--muted)"></span> Todos</div>';
+  projects.forEach(p => {
+    list.innerHTML += '<div class="proj-item'+(currentProject==p.id?' active':'')+'" onclick="selectProject('+p.id+')"><span class="proj-dot" style="background:'+p.color+'"></span> '+esc(p.name)+' <span class="proj-count">'+p.task_count+'</span></div>';
+  });
+}
+
+function selectProject(id) { currentProject = id; renderSidebar(); loadTasks(); }
+
+function openNewProject() { document.getElementById('project-modal').classList.add('active'); }
+function closeProjectModal() { document.getElementById('project-modal').classList.remove('active'); }
+
+document.getElementById('project-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const body = { name: document.getElementById('proj-name').value, description: document.getElementById('proj-desc').value, color: document.getElementById('proj-color').value };
+  await api('/projects', { method:'POST', body });
+  closeProjectModal();
+  document.getElementById('proj-name').value = '';
+  loadProjects();
+  toast('Proyecto creado');
+});
+
+// ── Tasks ──────────────────────────────
 async function loadTasks() {
-  const status = document.getElementById('filter-status').value;
-  const assignee = document.getElementById('filter-assignee').value;
-  const params = new URLSearchParams();
-  if (status !== 'all') params.set('status', status);
-  if (assignee !== 'all') params.set('assignee', assignee);
-  const res = await api('/tasks?' + params);
-  if (!res.ok) { console.error('API error:', res.status); toast('Error al cargar tareas', 'error'); return; }
-  const tasks = await res.json();
-  renderBoard(tasks);
+  try {
+    const params = new URLSearchParams();
+    const status = document.getElementById('filter-status').value;
+    const assignee = document.getElementById('filter-assignee').value;
+    if (status !== 'all') params.set('status', status);
+    if (assignee !== 'all') params.set('assignee', assignee);
+    if (currentProject) params.set('project', currentProject);
+    const res = await api('/tasks?'+params);
+    if (!res.ok) { console.error('loadTasks:', res.status); return; }
+    const tasks = await res.json();
+    renderBoard(tasks);
+  } catch(e) { console.error('loadTasks error:', e); }
 }
 
 function renderBoard(tasks) {
-  ['todo','in-progress','done'].forEach(s => {
-    document.getElementById('list-'+s).innerHTML = '';
-    document.getElementById('count-'+s).textContent = '0';
-  });
-  if (!tasks.length) {
-    document.getElementById('list-todo').innerHTML = '<div class="empty">No hay tareas. ¡Creá la primera!</div>';
-    document.getElementById('task-count').textContent = '0 tareas';
-    return;
-  }
+  ['todo','in-progress','done'].forEach(s => { document.getElementById('list-'+s).innerHTML=''; document.getElementById('count-'+s).textContent='0'; });
+  if (!tasks || !tasks.length) { document.getElementById('list-todo').innerHTML = '<div class="empty">No hay tareas. Crea la primera!</div>'; document.getElementById('task-count').textContent='0 tareas'; return; }
   const count = {};
+  const today = new Date(); today.setHours(0,0,0,0);
   tasks.forEach(t => {
-    count[t.status] = (count[t.status]||0) + 1;
+    count[t.status] = (count[t.status]||0)+1;
     const card = document.createElement('div');
-    card.className = 'card';
-    card.draggable = true;
-    card.id = 'task-' + t.id;
-    card.ondragstart = e => { e.dataTransfer.setData('text/plain', t.id); };
+    card.className = 'card'; card.draggable = true; card.id = 'task-'+t.id;
+    card.ondragstart = e => e.dataTransfer.setData('text/plain', t.id);
     card.onclick = () => openTask(t);
     const initials = t.assignee_name ? t.assignee_name.split(' ').map(w=>w[0]).join('').substring(0,2) : '?';
-    card.innerHTML = `
-      <div class="card-title">${esc(t.title)}</div>
-      ${t.description ? '<div class="card-desc">'+esc(t.description)+'</div>' : ''}
-      <div class="card-meta">
-        <span class="priority p-${t.priority}">${t.priority}</span>
-        <span class="assignee-avatar" title="${esc(t.assignee_name||'Sin asignar')}">${initials}</span>
-      </div>`;
-    const list = document.getElementById('list-' + t.status);
+    let dateTag = '';
+    if (t.end_date) {
+      const d = new Date(t.end_date); const days = Math.round((d-today)/86400000);
+      const cls = days <= 1 ? 'urgent' : '';
+      dateTag = '<span class="date-tag '+cls+'">📅 '+t.end_date+(days===0?' (hoy)':days===1?' (mañana)':days<0?' (vencida)':'')+'</span>';
+    }
+    const projTag = t.project_name ? '<span class="proj-tag" style="background:'+(t.project_color||'#6366f1')+'33;color:'+(t.project_color||'#6366f1')+'">'+esc(t.project_name)+'</span>' : '';
+    card.innerHTML = '<div class="card-title">'+esc(t.title)+'</div>'+(t.description?'<div class="card-desc">'+esc(t.description)+'</div>':'')+
+      '<div class="card-meta"><span class="tag p-'+t.priority+'">'+t.priority+'</span><span class="tag c-'+t.complexity+'">C:'+t.complexity+'</span>'+projTag+dateTag+'<span class="assignee-avatar" title="'+esc(t.assignee_name||'Sin asignar')+'">'+initials+'</span></div>';
+    const list = document.getElementById('list-'+t.status);
     if (list) list.appendChild(card);
   });
-  ['todo','in-progress','done'].forEach(s => {
-    document.getElementById('count-'+s).textContent = count[s] || 0;
-  });
-  document.getElementById('task-count').textContent = tasks.length + ' tareas';
+  ['todo','in-progress','done'].forEach(s => { document.getElementById('count-'+s).textContent = count[s]||0; });
+  document.getElementById('task-count').textContent = tasks.length+' tareas';
 }
 
 function allowDrop(e) { e.preventDefault(); }
-
-async function drop(e, status) {
-  e.preventDefault();
-  const id = e.dataTransfer.getData('text/plain');
-  await api('/tasks/' + id, { method:'PUT', body:{ status } });
-  loadTasks();
-  toast('Estado actualizado');
-}
+async function drop(e, status) { e.preventDefault(); const id = e.dataTransfer.getData('text/plain'); await api('/tasks/'+id, { method:'PUT', body:{ status } }); loadTasks(); toast('Actualizado'); }
 
 function openNewTask() {
   document.getElementById('modal-title').textContent = 'Nueva tarea';
@@ -321,25 +377,33 @@ function openNewTask() {
   document.getElementById('task-title').value = '';
   document.getElementById('task-desc').value = '';
   document.getElementById('task-priority').value = 'medium';
+  document.getElementById('task-complexity').value = 'medium';
   document.getElementById('task-status').value = 'todo';
+  document.getElementById('task-project').value = currentProject || '';
   document.getElementById('task-assignee').value = '';
+  document.getElementById('task-start').value = '';
+  document.getElementById('task-end').value = '';
   document.getElementById('btn-delete-task').style.display = 'none';
   document.getElementById('comments-section').style.display = 'none';
   document.getElementById('task-modal').classList.add('active');
 }
 
-async function openTask(task) {
+async function openTask(t) {
   document.getElementById('modal-title').textContent = 'Editar tarea';
-  document.getElementById('task-id').value = task.id;
-  document.getElementById('task-title').value = task.title;
-  document.getElementById('task-desc').value = task.description || '';
-  document.getElementById('task-priority').value = task.priority;
-  document.getElementById('task-status').value = task.status;
-  document.getElementById('task-assignee').value = task.assignee_id || '';
+  document.getElementById('task-id').value = t.id;
+  document.getElementById('task-title').value = t.title;
+  document.getElementById('task-desc').value = t.description || '';
+  document.getElementById('task-priority').value = t.priority;
+  document.getElementById('task-complexity').value = t.complexity || 'medium';
+  document.getElementById('task-status').value = t.status;
+  document.getElementById('task-project').value = t.project_id || '';
+  document.getElementById('task-assignee').value = t.assignee_id || '';
+  document.getElementById('task-start').value = t.start_date || '';
+  document.getElementById('task-end').value = t.end_date || '';
   document.getElementById('btn-delete-task').style.display = 'inline-block';
   document.getElementById('comments-section').style.display = 'block';
   document.getElementById('task-modal').classList.add('active');
-  loadComments(task.id);
+  loadComments(t.id);
 }
 
 function closeModal() { document.getElementById('task-modal').classList.remove('active'); }
@@ -348,92 +412,72 @@ document.getElementById('task-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   try {
     const id = document.getElementById('task-id').value;
-  const body = {
-    title: document.getElementById('task-title').value,
-    description: document.getElementById('task-desc').value,
-    priority: document.getElementById('task-priority').value,
-    status: document.getElementById('task-status').value,
-    assignee_id: document.getElementById('task-assignee').value || null
-  };
-  if (id) {
-    await api('/tasks/' + id, { method:'PUT', body });
-  } else {
-    const r = await api('/tasks', { method:'POST', body });
-    if (!r.ok) { toast('Error: ' + r.status, 'error'); return; }
-  }
-  closeModal();
-  loadTasks();
-  toast(id ? 'Tarea actualizada' : 'Tarea creada');
-  } catch(err) { toast('Error: ' + err.message, 'error'); }
+    const body = {
+      title: document.getElementById('task-title').value,
+      description: document.getElementById('task-desc').value,
+      priority: document.getElementById('task-priority').value,
+      complexity: document.getElementById('task-complexity').value,
+      status: document.getElementById('task-status').value,
+      project_id: document.getElementById('task-project').value || null,
+      assignee_id: document.getElementById('task-assignee').value || null,
+      start_date: document.getElementById('task-start').value || null,
+      end_date: document.getElementById('task-end').value || null
+    };
+    const r = id ? await api('/tasks/'+id, { method:'PUT', body }) : await api('/tasks', { method:'POST', body });
+    if (!r.ok) { toast('Error: '+r.status, 'error'); return; }
+    closeModal(); loadTasks(); loadProjects();
+    toast(id ? 'Tarea actualizada' : 'Tarea creada');
+  } catch(err) { toast('Error: '+err.message, 'error'); }
 });
 
 async function deleteTask() {
-  if (!confirm('¿Eliminar esta tarea?')) return;
-  const id = document.getElementById('task-id').value;
-  await api('/tasks/' + id + '/remove', { method:'POST' });
-  closeModal();
-  loadTasks();
-  toast('Tarea eliminada');
+  if (!confirm('Eliminar tarea?')) return;
+  await api('/tasks/'+document.getElementById('task-id').value+'/remove', { method:'POST' });
+  closeModal(); loadTasks(); loadProjects();
+  toast('Eliminada');
 }
 
-// ── Comments ───────────────────────
+// ── Comments ───────────────────────────
 async function loadComments(taskId) {
-  const res = await api('/tasks/' + taskId + '/comments');
-  const comments = await res.json();
+  const res = await api('/tasks/'+taskId+'/comments'); const comments = await res.json();
   const list = document.getElementById('comments-list');
   list.innerHTML = comments.length ? '' : '<div class="empty" style="padding:10px;">Sin comentarios</div>';
-  comments.forEach(c => {
-    list.innerHTML += `<div class="comment"><div class="comment-user">${esc(c.user_name)}</div><div class="comment-text">${esc(c.text)}</div><div class="comment-time">${new Date(c.created).toLocaleString()}</div></div>`;
-  });
+  comments.forEach(c => { list.innerHTML += '<div class="comment"><div class="comment-user">'+esc(c.user_name)+'</div><div class="comment-text">'+esc(c.text)+'</div><div class="comment-time">'+new Date(c.created).toLocaleString()+'</div></div>'; });
 }
 
 async function addComment() {
-  const input = document.getElementById('comment-input');
-  const text = input.value.trim();
-  if (!text) return;
-  const taskId = document.getElementById('task-id').value;
-  await api('/tasks/' + taskId + '/comments', { method:'POST', body:{ text } });
-  input.value = '';
-  loadComments(taskId);
+  const input = document.getElementById('comment-input'); const text = input.value.trim();
+  if (!text) return; const taskId = document.getElementById('task-id').value;
+  await api('/tasks/'+taskId+'/comments', { method:'POST', body:{ text } });
+  input.value = ''; loadComments(taskId);
 }
 
-// ── Users ──────────────────────────
+// ── Users ──────────────────────────────
 async function loadUsers() {
   try {
-    const res = await api('/users');
-    const users = await res.json();
-    // Populate assignee filter
+    const res = await api('/users'); const users = await res.json();
     const sel = document.getElementById('filter-assignee');
-    sel.innerHTML = '<option value="all">Todos los usuarios</option>';
+    sel.innerHTML = '<option value="all">Todos</option>';
     users.forEach(u => { sel.innerHTML += '<option value="'+u.id+'">'+esc(u.name)+'</option>'; });
-    // Populate task form assignee
     const tsel = document.getElementById('task-assignee');
     tsel.innerHTML = '<option value="">Sin asignar</option>';
     users.forEach(u => { tsel.innerHTML += '<option value="'+u.id+'">'+esc(u.name)+'</option>'; });
   } catch(e) {}
 }
 
-function showUsers() {
-  document.getElementById('users-modal').classList.add('active');
-  refreshUserList();
-}
-
+function showUsers() { document.getElementById('users-modal').classList.add('active'); refreshUserList(); }
 function closeUsers() { document.getElementById('users-modal').classList.remove('active'); }
 
 async function refreshUserList() {
-  const res = await api('/users');
-  const users = await res.json();
-  const list = document.getElementById('users-list');
-  list.innerHTML = '';
+  const res = await api('/users'); const users = await res.json();
+  const list = document.getElementById('users-list'); list.innerHTML = '';
   users.forEach(u => {
     const div = document.createElement('div');
     div.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);';
-    div.innerHTML = `<span><strong>${esc(u.name)}</strong> <span style="color:var(--muted);font-size:12px;">${esc(u.email)}</span><span style="font-size:10px;background:var(--border);padding:1px 6px;border-radius:8px;margin-left:6px;">${u.role}</span></span>`;
+    div.innerHTML = '<span><strong>'+esc(u.name)+'</strong> <span style="color:var(--muted);font-size:12px;">'+esc(u.email)+'</span><span style="font-size:10px;background:var(--border);padding:1px 6px;border-radius:8px;margin-left:6px;">'+u.role+'</span></span>';
     if (currentUser.role === 'admin' && u.role !== 'admin') {
-      const del = document.createElement('button');
-      del.className = 'btn btn-danger btn-sm';
-      del.textContent = 'X';
-      del.onclick = async () => { await api('/users/'+u.id+'/remove',{method:'POST'}); refreshUserList(); loadUsers(); toast('Usuario eliminado'); };
+      const del = document.createElement('button'); del.className='btn btn-danger btn-sm'; del.textContent='X';
+      del.onclick = async () => { await api('/users/'+u.id+'/remove',{method:'POST'}); refreshUserList(); loadUsers(); toast('Eliminado'); };
       div.appendChild(del);
     }
     list.appendChild(div);
@@ -442,41 +486,17 @@ async function refreshUserList() {
 
 document.getElementById('user-form').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const body = {
-    name: document.getElementById('user-name').value,
-    email: document.getElementById('user-email').value,
-    password: document.getElementById('user-password').value,
-    role: document.getElementById('user-role').value
-  };
+  const body = { name: document.getElementById('user-name').value, email: document.getElementById('user-email').value, password: document.getElementById('user-password').value, role: document.getElementById('user-role').value };
   const res = await api('/users', { method:'POST', body });
-  if (res.ok) {
-    document.getElementById('user-name').value = '';
-    document.getElementById('user-email').value = '';
-    document.getElementById('user-password').value = '';
-    refreshUserList();
-    loadUsers();
-    toast('Usuario creado');
-  } else {
-    const err = await res.json();
-    toast(err.error || 'Error', 'error');
-  }
+  if (res.ok) { document.getElementById('user-name').value=''; document.getElementById('user-email').value=''; document.getElementById('user-password').value=''; refreshUserList(); loadUsers(); toast('Usuario creado'); }
+  else { const err = await res.json(); toast(err.error||'Error', 'error'); }
 });
 
-// ── Utils ──────────────────────────
-function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+// ── Utils ──────────────────────────────
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function toast(msg, type) { const t = document.getElementById('toast'); t.textContent = msg; t.className = 'toast '+(type||''); t.style.display='block'; setTimeout(()=>t.style.display='none', 2500); }
 
-function toast(msg, type) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.className = 'toast ' + (type||'');
-  t.style.display = 'block';
-  setTimeout(() => t.style.display = 'none', 2500);
-}
-
-// Close modals on overlay click
-document.querySelectorAll('.modal-overlay').forEach(ov => {
-  ov.addEventListener('click', function(e) { if (e.target === this) { this.classList.remove('active'); } });
-});
+document.querySelectorAll('.modal-overlay').forEach(ov => { ov.addEventListener('click', function(e) { if (e.target === this) this.classList.remove('active'); }); });
 </script>
 </body>
 </html>
