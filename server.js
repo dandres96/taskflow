@@ -8,6 +8,7 @@ const localtunnel = require('localtunnel');
 const app = express();
 const JWT_SECRET = process.env.JWT_SECRET || 'taskflow-dev-secret-change-me';
 const PORT = process.env.PORT || 3000;
+const HOST = '0.0.0.0';
 const DB_PATH = process.env.DB_PATH || 'taskflow.db';
 
 app.use(express.json());
@@ -167,17 +168,8 @@ async function start() {
     console.log('Admin: admin@taskflow.local / admin123');
   }
 
-  app.listen(PORT, () => {
-    console.log('TaskFlow → http://localhost:' + PORT);
-    function connectTunnel() {
-      localtunnel({ port: PORT }).then(t => {
-        fs.writeFileSync('tunnel-url.txt', t.url);
-        console.log('Public: ' + t.url);
-        t.on('close', () => { console.log('Tunnel closed, reconnecting...'); setTimeout(connectTunnel, 3000); });
-        t.on('error', () => { console.log('Tunnel error, reconnecting...'); setTimeout(connectTunnel, 3000); });
-      }).catch(() => { console.log('Tunnel retry in 5s...'); setTimeout(connectTunnel, 5000); });
-    }
-    connectTunnel();
+  app.listen(PORT, HOST, () => {
+    console.log('TaskFlow → http://' + HOST + ':' + PORT);
   });
 }
 

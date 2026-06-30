@@ -1,8 +1,5 @@
 app = "taskflow-daniel"
-primary_region = "bog"
-
-[build]
-  builder = "node:22"
+primary_region = "gru"
 
 [env]
   PORT = "3000"
