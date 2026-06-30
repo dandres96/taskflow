@@ -105,7 +105,18 @@ header h1 span { color:var(--accent); }
 .toast { position:fixed; bottom:20px; right:20px; background:var(--green); color:black; padding:10px 20px; border-radius:8px; font-size:13px; z-index:200; display:none; }
 .toast.error { background:var(--red); color:white; }
 
-@media (max-width:768px) { .board { grid-template-columns:1fr; } .sidebar { display:none; } .form-row { grid-template-columns:1fr; } }
+@media (max-width:768px) {
+  .board { grid-template-columns:1fr; }
+  .sidebar { display:none; position:fixed; top:56px; left:0; bottom:0; width:280px; z-index:50; box-shadow:2px 0 8px rgba(0,0,0,.3); }
+  .sidebar.open { display:block; }
+  .form-row { grid-template-columns:1fr; }
+  .menu-btn { display:inline-flex !important; }
+  header .container { flex-wrap:nowrap; }
+  .user-bar .name, .user-bar .role { display:none; }
+}
+.menu-btn { display:none; background:var(--border); border:none; color:var(--text); width:36px; height:36px; border-radius:8px; font-size:18px; cursor:pointer; align-items:center; justify-content:center; }
+.overlay-bg { display:none; position:fixed; top:56px; left:0; right:0; bottom:0; background:rgba(0,0,0,.4); z-index:40; }
+.overlay-bg.active { display:block; }
 </style>
 </head>
 <body>
@@ -128,6 +139,7 @@ header h1 span { color:var(--accent); }
     <div class="container">
       <h1>⚡ <span>TaskFlow</span></h1>
       <div class="user-bar">
+        <button class="menu-btn" onclick="toggleSidebar()">☰</button>
         <span class="name" id="current-user"></span>
         <span class="role" id="current-role"></span>
         <button class="btn btn-secondary btn-sm" onclick="showProjects()">📁 Proyectos</button>
@@ -137,7 +149,8 @@ header h1 span { color:var(--accent); }
     </div>
   </header>
   <div class="layout">
-    <div class="sidebar">
+    <div class="overlay-bg" id="overlay-bg" onclick="toggleSidebar()"></div>
+    <div class="sidebar" id="sidebar">
       <h3>Proyectos</h3>
       <div id="project-list"></div>
       <button class="btn btn-secondary btn-sm btn-block" style="margin-top:8px;" onclick="openNewProject()">+ Nuevo</button>
@@ -309,7 +322,7 @@ function renderSidebar() {
   });
 }
 
-function selectProject(id) { currentProject = id; renderSidebar(); loadTasks(); }
+function selectProject(id) { currentProject = id; renderSidebar(); loadTasks(); if (window.innerWidth <= 768) toggleSidebar(); }
 
 function openNewProject() { document.getElementById('project-modal').classList.add('active'); }
 function closeProjectModal() { document.getElementById('project-modal').classList.remove('active'); }
@@ -495,6 +508,7 @@ document.getElementById('user-form').addEventListener('submit', async (e) => {
 // ── Utils ──────────────────────────────
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function toast(msg, type) { const t = document.getElementById('toast'); t.textContent = msg; t.className = 'toast '+(type||''); t.style.display='block'; setTimeout(()=>t.style.display='none', 2500); }
+function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); document.getElementById('overlay-bg').classList.toggle('active'); }
 
 document.querySelectorAll('.modal-overlay').forEach(ov => { ov.addEventListener('click', function(e) { if (e.target === this) this.classList.remove('active'); }); });
 </script>
