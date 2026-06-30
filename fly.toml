@@ -1,0 +1,26 @@
+app = "taskflow-daniel"
+primary_region = "bog"
+
+[build]
+  builder = "node:22"
+
+[env]
+  PORT = "3000"
+  JWT_SECRET = "taskflow-prod-secret-2026"
+  DB_PATH = "/data/taskflow.db"
+
+[[services]]
+  protocol = "tcp"
+  internal_port = 3000
+
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
+
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+
+[mounts]
+  source = "taskflow_data"
+  destination = "/data"

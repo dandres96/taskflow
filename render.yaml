@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: taskflow-daniel
+    env: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: PORT
+        value: "3000"
+      - key: JWT_SECRET
+        value: "taskflow-prod-secret-2026"
+      - key: DB_PATH
+        value: "/data/taskflow.db"
+    disk:
+      name: taskflow-data
+      mountPath: /data
+      sizeGB: 1
