@@ -1,4 +1,4 @@
-app = "taskflow-daniel"
+app = "taskflow-cwti"
 primary_region = "gru"
 
 [env]

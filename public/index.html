@@ -264,6 +264,7 @@ async function loadTasks() {
   if (status !== 'all') params.set('status', status);
   if (assignee !== 'all') params.set('assignee', assignee);
   const res = await api('/tasks?' + params);
+  if (!res.ok) { console.error('API error:', res.status); toast('Error al cargar tareas', 'error'); return; }
   const tasks = await res.json();
   renderBoard(tasks);
 }
@@ -345,7 +346,8 @@ function closeModal() { document.getElementById('task-modal').classList.remove('
 
 document.getElementById('task-form').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const id = document.getElementById('task-id').value;
+  try {
+    const id = document.getElementById('task-id').value;
   const body = {
     title: document.getElementById('task-title').value,
     description: document.getElementById('task-desc').value,
@@ -356,11 +358,13 @@ document.getElementById('task-form').addEventListener('submit', async (e) => {
   if (id) {
     await api('/tasks/' + id, { method:'PUT', body });
   } else {
-    await api('/tasks', { method:'POST', body });
+    const r = await api('/tasks', { method:'POST', body });
+    if (!r.ok) { toast('Error: ' + r.status, 'error'); return; }
   }
   closeModal();
   loadTasks();
   toast(id ? 'Tarea actualizada' : 'Tarea creada');
+  } catch(err) { toast('Error: ' + err.message, 'error'); }
 });
 
 async function deleteTask() {
