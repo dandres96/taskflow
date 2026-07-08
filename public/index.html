@@ -43,12 +43,20 @@ header h1 span { color:var(--accent); }
 .layout { display:flex; gap:0; min-height:calc(100vh - 56px); }
 .sidebar { width:220px; background:var(--card); border-right:1px solid var(--border); padding:16px; flex-shrink:0; }
 .sidebar h3 { font-size:12px; color:var(--muted); text-transform:uppercase; margin-bottom:8px; }
-.proj-item { display:flex; align-items:center; gap:8px; padding:8px; border-radius:6px; cursor:pointer; font-size:13px; margin-bottom:4px; }
+.proj-item { display:flex; align-items:center; gap:8px; padding:8px; border-radius:6px; cursor:pointer; font-size:13px; margin-bottom:4px; min-width:0; }
 .proj-item:hover { background:var(--bg); }
 .proj-item.active { background:var(--accent); color:white; }
 .proj-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
-.proj-count { margin-left:auto; font-size:11px; color:var(--muted); }
+.proj-thumb { width:22px; height:22px; border-radius:4px; object-fit:cover; flex-shrink:0; background:#fff; }
+.proj-name { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.proj-count { margin-left:6px; font-size:11px; color:var(--muted); flex-shrink:0; }
 .proj-item.active .proj-count { color:rgba(255,255,255,.7); }
+.proj-actions { display:flex; gap:2px; flex-shrink:0; opacity:0; transition:opacity .15s; }
+.proj-item:hover .proj-actions, .proj-item.active .proj-actions { opacity:1; }
+.proj-action-btn { background:transparent; border:none; cursor:pointer; padding:2px 4px; font-size:12px; border-radius:4px; color:inherit; }
+.proj-action-btn:hover { background:rgba(255,255,255,.12); }
+.proj-action-del { color:var(--red); }
+.proj-item.active .proj-action-del { color:#ffb4b4; }
 
 /* Main */
 .main { flex:1; padding:16px; }
@@ -105,7 +113,31 @@ header h1 span { color:var(--accent); }
 .toast { position:fixed; bottom:20px; right:20px; background:var(--green); color:black; padding:10px 20px; border-radius:8px; font-size:13px; z-index:200; display:none; }
 .toast.error { background:var(--red); color:white; }
 
+/* Dashboard */
+.dash-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:16px; margin-bottom:16px; }
+.dash-card { background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:16px; }
+.dash-card h4 { font-size:13px; color:var(--muted); margin-bottom:8px; }
+.dash-card .big-num { font-size:28px; font-weight:700; }
+.dash-bar { height:20px; background:var(--border); border-radius:10px; overflow:hidden; margin:4px 0 8px; }
+.dash-bar-fill { height:100%; border-radius:10px; transition:width .4s; }
+.dash-row { display:flex; align-items:center; justify-content:space-between; padding:4px 0; font-size:12px; }
+.dash-label { flex:1; }
+.dash-vals { display:flex; gap:8px; }
+.chart-canvas { width:100%; height:120px; position:relative; }
+.chart-bar-wrap { position:absolute; bottom:0; display:flex; flex-direction:column; align-items:center; }
+.chart-bar { width:14px; background:var(--accent); border-radius:3px 3px 0 0; min-height:1px; }
+.chart-bar.completed { background:var(--green); }
+.chart-label { font-size:8px; color:var(--muted); margin-top:2px; }
+.overdue-tag { color:var(--red); font-weight:600; }
+.avatar-sm { width:20px; height:20px; border-radius:50%; background:var(--accent); display:inline-flex; align-items:center; justify-content:center; font-size:9px; font-weight:600; color:white; margin-right:4px; vertical-align:middle; }
+.support-img { max-width:200px; max-height:150px; border-radius:6px; cursor:pointer; }
+.ticket-card { background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:12px; margin-bottom:8px; }
+.ticket-status { font-size:11px; padding:2px 8px; border-radius:10px; }
+.ticket-status.open { background:var(--red); color:white; }
+.ticket-status.closed { background:var(--green); color:black; }
+
 @media (max-width:768px) {
+  .dash-grid { grid-template-columns:1fr; }
   .board { grid-template-columns:1fr; }
   .sidebar { display:none; position:fixed; top:56px; left:0; bottom:0; width:280px; z-index:50; box-shadow:2px 0 8px rgba(0,0,0,.3); }
   .sidebar.open { display:block; }
@@ -143,7 +175,9 @@ header h1 span { color:var(--accent); }
         <span class="name" id="current-user"></span>
         <span class="role" id="current-role"></span>
         <button class="btn btn-secondary btn-sm" onclick="showProjects()">📁 Proyectos</button>
-        <button class="btn btn-secondary btn-sm" onclick="showUsers()">👥 Usuarios</button>
+        <button class="btn btn-secondary btn-sm" id="btn-dashboard" style="display:none" onclick="openDashboard()">📊 Dashboard</button>
+        <button class="btn btn-secondary btn-sm" id="btn-users" style="display:none" onclick="showUsers()">👥 Usuarios</button>
+        <button class="btn btn-secondary btn-sm" onclick="openProfile()">👤 Perfil</button>
         <button class="btn btn-secondary btn-sm" onclick="logout()">Salir</button>
       </div>
     </div>
@@ -230,16 +264,53 @@ header h1 span { color:var(--accent); }
 <!-- Project Modal -->
 <div class="modal-overlay" id="project-modal">
   <div class="modal">
-    <h2>Nuevo proyecto</h2>
+    <h2 id="project-modal-title">Nuevo proyecto</h2>
     <form id="project-form">
       <div class="form-group"><label>Nombre</label><input type="text" id="proj-name" required></div>
       <div class="form-group"><label>Descripcion</label><textarea id="proj-desc"></textarea></div>
       <div class="form-group"><label>Color</label><input type="color" id="proj-color" value="#6366f1" style="width:60px;height:40px;"></div>
+      <div class="form-group"><label>Imagen del proyecto (logo, banner)</label>
+        <div style="border:2px dashed var(--border);border-radius:8px;padding:12px;text-align:center;cursor:pointer;" onclick="document.getElementById('proj-image').click()">
+          <div id="proj-image-placeholder">📷 Click para subir imagen</div>
+          <img id="proj-image-preview" style="display:none;max-width:100%;max-height:120px;border-radius:6px;">
+          <input type="file" id="proj-image" accept="image/*" style="display:none;" onchange="handleProjImage(this)">
+        </div>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px;display:flex;justify-content:space-between;align-items:center;">
+          <span>Aparece en el formulario público de soporte</span>
+          <button type="button" class="btn btn-sm btn-secondary" id="proj-image-remove" style="display:none;padding:2px 8px;font-size:10px;" onclick="clearProjImage()">Quitar</button>
+        </div>
+      </div>
       <div class="modal-actions">
         <button type="button" class="btn btn-secondary btn-sm" onclick="closeProjectModal()">Cancelar</button>
-        <button type="submit" class="btn btn-primary btn-sm">Crear</button>
+        <button type="submit" class="btn btn-primary btn-sm" id="project-submit-btn">Crear</button>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- Dashboard Modal -->
+<div class="modal-overlay" id="dashboard-modal">
+  <div class="modal" style="max-width:900px;">
+    <h2>📊 Dashboard de Rendimiento</h2>
+    
+    <div class="dash-grid" id="dash-summary"></div>
+    
+    <h4 style="font-size:14px;margin:16px 0 8px;">📈 Velocidad del equipo (últimos 14 días)</h4>
+    <div class="chart-canvas" id="velocity-chart"></div>
+
+    <h4 style="font-size:14px;margin:16px 0 8px;">👥 Rendimiento por usuario</h4>
+    <div id="dash-users"></div>
+
+    <h4 style="font-size:14px;margin:16px 0 8px;">📁 Proyectos</h4>
+    <div id="dash-projects"></div>
+
+    <h4 style="font-size:14px;margin:16px 0 8px;">🎯 Por prioridad / complejidad</h4>
+    <div class="dash-grid" id="dash-pc"></div>
+
+    <h4 style="font-size:14px;margin:16px 0 8px;color:var(--red);">⚠️ Tareas vencidas</h4>
+    <div id="dash-overdue"></div>
+
+    <div class="modal-actions"><button class="btn btn-secondary btn-sm" onclick="closeDashboard()">Cerrar</button></div>
   </div>
 </div>
 
@@ -258,6 +329,72 @@ header h1 span { color:var(--accent); }
     </form>
     <div id="users-list"></div>
     <div class="modal-actions"><button class="btn btn-secondary btn-sm" onclick="closeUsers()">Cerrar</button></div>
+  </div>
+</div>
+
+<!-- Profile Modal -->
+<div class="modal-overlay" id="profile-modal">
+  <div class="modal" style="max-width:420px;">
+    <h2>👤 Mi Perfil</h2>
+    <form id="profile-form">
+      <div class="form-group"><label>Nombre</label><input type="text" id="profile-name" required></div>
+      <div class="form-group"><label>Email</label><input type="email" id="profile-email" disabled style="opacity:.6;">
+        <div style="font-size:10px;color:var(--muted);margin-top:2px;">El email no se puede modificar</div></div>
+      <div class="form-group"><label>Contrasena actual</label><input type="password" id="profile-current-password" placeholder="Requerida para guardar cambios" required></div>
+      <div class="form-group"><label>Nueva contrasena</label><input type="password" id="profile-new-password" placeholder="Dejar vacio para no cambiar"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="closeProfile()">Cancelar</button>
+        <button type="submit" class="btn btn-primary btn-sm">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Support Tickets Modal -->
+<div class="modal-overlay" id="support-modal">
+  <div class="modal" style="max-width:650px;">
+    <h2>🎫 Tickets de Soporte — <span id="support-project-name"></span></h2>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:12px;">🔗 Link público: <code id="support-public-link" style="background:var(--bg);padding:2px 6px;border-radius:4px;"></code> <button class="btn btn-sm" style="padding:1px 6px;font-size:10px;" onclick="copySupportLink()">📋 Copiar</button></div>
+    <div style="display:flex;gap:8px;margin-bottom:12px;">
+      <button class="btn btn-sm" id="tab-new-ticket" onclick="switchSupportTab('new')" style="background:var(--accent);color:white;">+ Nuevo ticket</button>
+      <button class="btn btn-sm btn-secondary" id="tab-ticket-list" onclick="switchSupportTab('list')">Ver tickets</button>
+    </div>
+    <!-- New Ticket Form -->
+    <div id="support-tab-new">
+      <form id="support-form">
+        <div class="form-group"><label>Nombre de quien reporta *</label><input type="text" id="support-reporter" required placeholder="Ej: Juan Perez"></div>
+        <div class="form-group"><label>Evidencia (captura de pantalla)</label>
+          <div style="border:2px dashed var(--border);border-radius:8px;padding:20px;text-align:center;cursor:pointer;transition:border-color .2s;" id="support-dropzone" onclick="document.getElementById('support-image').click()">
+            <div id="support-drop-text">📷 Click para subir imagen o arrastrar aquí</div>
+            <img id="support-preview" style="display:none;max-width:100%;max-height:200px;border-radius:4px;margin-top:8px;">
+            <input type="file" id="support-image" accept="image/*" style="display:none;" onchange="handleSupportImage(this)">
+          </div>
+          <button type="button" class="btn btn-sm btn-secondary" id="support-remove-img" style="display:none;margin-top:4px;" onclick="clearSupportImage()">Quitar imagen</button>
+        </div>
+        <div class="form-group"><label>Descripción (opcional)</label><textarea id="support-desc" rows="3" placeholder="Describe el problema..."></textarea></div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="closeSupport()">Cancelar</button>
+          <button type="submit" class="btn btn-primary btn-sm">📨 Enviar ticket</button>
+        </div>
+      </form>
+    </div>
+    <!-- Tickets List -->
+    <div id="support-tab-list" style="display:none;">
+      <div id="support-tickets-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Delete Modal -->
+<div class="modal-overlay" id="confirm-modal">
+  <div class="modal" style="max-width:380px;">
+    <h2 style="color:var(--red);">⚠️ Eliminar proyecto</h2>
+    <p>¿Estás seguro de eliminar <strong id="confirm-name"></strong>?</p>
+    <p style="font-size:12px;color:var(--muted);">Se eliminarán también todas sus tareas y tickets de soporte. Esta acción no se puede deshacer.</p>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-secondary btn-sm" onclick="closeConfirm()">Cancelar</button>
+      <button type="button" class="btn btn-sm" id="confirm-btn" style="background:var(--red);color:white;" onclick="doConfirm()">Eliminar</button>
+    </div>
   </div>
 </div>
 
@@ -291,6 +428,14 @@ function showApp() {
   document.getElementById('app').style.display='block';
   document.getElementById('current-user').textContent = currentUser.name;
   document.getElementById('current-role').textContent = currentUser.role === 'admin' ? 'Admin' : 'Dev';
+  if (currentUser.role === 'admin') {
+    document.getElementById('btn-dashboard').style.display = '';
+    document.getElementById('btn-users').style.display = '';
+  } else {
+    // Dev: hide assignee filter and form field
+    document.getElementById('filter-assignee').parentElement.style.display = 'none';
+    document.getElementById('task-assignee').parentElement.style.display = 'none';
+  }
   loadProjects();
   loadTasks();
   loadUsers();
@@ -316,26 +461,134 @@ async function loadProjects() {
 
 function renderSidebar() {
   const list = document.getElementById('project-list');
-  list.innerHTML = '<div class="proj-item'+(currentProject===null?' active':'')+'" onclick="selectProject(null)"><span class="proj-dot" style="background:var(--muted)"></span> Todos</div>';
+  list.innerHTML = '<div class="proj-item'+(currentProject===null?' active':'')+'" onclick="selectProject(null)"><span class="proj-dot" style="background:var(--muted)"></span><span class="proj-name">Todos</span></div>';
   projects.forEach(p => {
-    list.innerHTML += '<div class="proj-item'+(currentProject==p.id?' active':'')+'" onclick="selectProject('+p.id+')"><span class="proj-dot" style="background:'+p.color+'"></span> '+esc(p.name)+' <span class="proj-count">'+p.task_count+'</span></div>';
+    const thumb = p.image_path ? '<img class="proj-thumb" src="'+p.image_path+'">' : '<span class="proj-dot" style="background:'+p.color+'"></span>';
+    const adminBtns = (currentUser && currentUser.role === 'admin') ? '<div class="proj-actions"><button class="proj-action-btn" onclick="event.stopPropagation();openSupport('+p.id+',\''+esc(p.name).replace(/'/g,"\\'")+'\')" title="Soporte">🎫</button><button class="proj-action-btn" onclick="event.stopPropagation();openEditProject('+p.id+')" title="Editar">⚙</button><button class="proj-action-btn proj-action-del" onclick="event.stopPropagation();confirmDeleteProject('+p.id+',\''+esc(p.name).replace(/'/g,"\\'")+'\')" title="Eliminar">🗑️</button></div>' : '';
+    list.innerHTML += '<div class="proj-item'+(currentProject==p.id?' active':'')+'" onclick="selectProject('+p.id+')">'+thumb+'<span class="proj-name">'+esc(p.name)+' <span class="proj-count">'+p.task_count+'</span></span>'+adminBtns+'</div>';
   });
 }
 
 function selectProject(id) { currentProject = id; renderSidebar(); loadTasks(); if (window.innerWidth <= 768) toggleSidebar(); }
 
-function openNewProject() { document.getElementById('project-modal').classList.add('active'); }
+let editingProjectId = null;
+let projImageData = null;
+let projImageRemoved = false;
+
+function openNewProject() {
+  editingProjectId = null;
+  document.getElementById('project-modal-title').textContent = 'Nuevo proyecto';
+  document.getElementById('project-submit-btn').textContent = 'Crear';
+  document.getElementById('proj-name').value = '';
+  document.getElementById('proj-desc').value = '';
+  document.getElementById('proj-color').value = '#6366f1';
+  clearProjImage();
+  projImageRemoved = false;
+  document.getElementById('project-modal').classList.add('active');
+}
+
+function openEditProject(id) {
+  const p = projects.find(x => x.id === id);
+  if (!p) return;
+  editingProjectId = id;
+  document.getElementById('project-modal-title').textContent = 'Editar proyecto';
+  document.getElementById('project-submit-btn').textContent = 'Guardar';
+  document.getElementById('proj-name').value = p.name;
+  document.getElementById('proj-desc').value = p.description || '';
+  document.getElementById('proj-color').value = p.color || '#6366f1';
+  clearProjImage();
+  if (p.image_path) {
+    document.getElementById('proj-image-preview').src = p.image_path;
+    document.getElementById('proj-image-preview').style.display = '';
+    document.getElementById('proj-image-placeholder').style.display = 'none';
+    document.getElementById('proj-image-remove').style.display = '';
+  }
+  document.getElementById('project-modal').classList.add('active');
+}
+
 function closeProjectModal() { document.getElementById('project-modal').classList.remove('active'); }
+
+function handleProjImage(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (file.size > 3 * 1024 * 1024) { toast('Imagen muy grande (max 3MB)', 'error'); return; }
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    projImageData = e.target.result;
+    projImageRemoved = false;
+    document.getElementById('proj-image-preview').src = e.target.result;
+    document.getElementById('proj-image-preview').style.display = '';
+    document.getElementById('proj-image-placeholder').style.display = 'none';
+    document.getElementById('proj-image-remove').style.display = '';
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearProjImage() {
+  projImageData = null;
+  projImageRemoved = true;
+  document.getElementById('proj-image-preview').style.display = 'none';
+  document.getElementById('proj-image-placeholder').style.display = '';
+  document.getElementById('proj-image-remove').style.display = 'none';
+  document.getElementById('proj-image').value = '';
+}
 
 document.getElementById('project-form').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const body = { name: document.getElementById('proj-name').value, description: document.getElementById('proj-desc').value, color: document.getElementById('proj-color').value };
-  await api('/projects', { method:'POST', body });
-  closeProjectModal();
-  document.getElementById('proj-name').value = '';
-  loadProjects();
-  toast('Proyecto creado');
+  const body = {
+    name: document.getElementById('proj-name').value,
+    description: document.getElementById('proj-desc').value,
+    color: document.getElementById('proj-color').value
+  };
+  if (projImageData) body.image_data = projImageData;
+  else if (projImageRemoved && editingProjectId) body.image_data = '';
+  
+  let res;
+  if (editingProjectId) {
+    res = await api('/projects/' + editingProjectId, { method:'PUT', body });
+  } else {
+    res = await api('/projects', { method:'POST', body });
+  }
+  
+  if (res.ok) {
+    closeProjectModal();
+    editingProjectId = null;
+    projImageData = null;
+    projImageRemoved = false;
+    document.getElementById('proj-name').value = '';
+    loadProjects();
+    toast(editingProjectId ? 'Proyecto actualizado' : 'Proyecto creado');
+  } else {
+    const err = await res.json().catch(() => ({}));
+    toast(err.error || 'Error', 'error');
+  }
 });
+
+// ── Delete project ────────────────────
+let pendingDeleteId = null;
+function confirmDeleteProject(id, name) {
+  pendingDeleteId = id;
+  document.getElementById('confirm-name').textContent = name;
+  document.getElementById('confirm-modal').classList.add('active');
+}
+function closeConfirm() { document.getElementById('confirm-modal').classList.remove('active'); pendingDeleteId = null; }
+async function doConfirm() {
+  if (!pendingDeleteId) return;
+  const btn = document.getElementById('confirm-btn');
+  btn.disabled = true; btn.textContent = 'Eliminando...';
+  const res = await api('/projects/'+pendingDeleteId, { method:'DELETE' });
+  btn.disabled = false; btn.textContent = 'Eliminar';
+  if (res.ok) {
+    closeConfirm();
+    if (currentProject === pendingDeleteId) currentProject = null;
+    loadProjects();
+    loadTasks();
+    toast('Proyecto eliminado');
+  } else {
+    const err = await res.json().catch(() => ({}));
+    toast(err.error || 'Error al eliminar', 'error');
+  }
+}
 
 // ── Tasks ──────────────────────────────
 async function loadTasks() {
@@ -467,6 +720,7 @@ async function addComment() {
 
 // ── Users ──────────────────────────────
 async function loadUsers() {
+  if (currentUser.role !== 'admin') return;
   try {
     const res = await api('/users'); const users = await res.json();
     const sel = document.getElementById('filter-assignee');
@@ -480,6 +734,228 @@ async function loadUsers() {
 
 function showUsers() { document.getElementById('users-modal').classList.add('active'); refreshUserList(); }
 function closeUsers() { document.getElementById('users-modal').classList.remove('active'); }
+
+// ── Profile ─────────────────────────────
+function openProfile() {
+  document.getElementById('profile-name').value = currentUser.name;
+  document.getElementById('profile-email').value = currentUser.email;
+  document.getElementById('profile-current-password').value = '';
+  document.getElementById('profile-new-password').value = '';
+  document.getElementById('profile-modal').classList.add('active');
+}
+function closeProfile() { document.getElementById('profile-modal').classList.remove('active'); }
+
+document.getElementById('profile-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const body = {
+    name: document.getElementById('profile-name').value,
+    current_password: document.getElementById('profile-current-password').value,
+    new_password: document.getElementById('profile-new-password').value || undefined
+  };
+  const res = await api('/me', { method:'PUT', body });
+  if (res.ok) {
+    const d = await res.json();
+    currentUser = d.user;
+    document.getElementById('current-user').textContent = currentUser.name;
+    closeProfile();
+    toast('Perfil actualizado');
+  } else {
+    const err = await res.json();
+    toast(err.error || 'Error', 'error');
+  }
+});
+
+// ── Support Tickets ────────────────────
+let currentSupportProject = null;
+let supportImageData = null;
+
+function openSupport(projectId, projectName) {
+  currentSupportProject = projectId;
+  document.getElementById('support-project-name').textContent = projectName;
+  const proj = projects.find(p => p.id === projectId);
+  const token = proj?.support_token || '';
+  document.getElementById('support-public-link').textContent = window.location.origin + '/soporte?p=' + token;
+  document.getElementById('support-modal').classList.add('active');
+  document.getElementById('support-reporter').value = '';
+  document.getElementById('support-desc').value = '';
+  clearSupportImage();
+  switchSupportTab('new');
+}
+
+function closeSupport() { document.getElementById('support-modal').classList.remove('active'); }
+
+function copySupportLink() {
+  const link = document.getElementById('support-public-link').textContent;
+  navigator.clipboard.writeText(link).then(() => toast('Link copiado 📋')).catch(() => toast('Error al copiar', 'error'));
+}
+
+function switchSupportTab(tab) {
+  document.getElementById('support-tab-new').style.display = tab === 'new' ? '' : 'none';
+  document.getElementById('support-tab-list').style.display = tab === 'list' ? '' : 'none';
+  document.getElementById('tab-new-ticket').style.background = tab === 'new' ? 'var(--accent)' : '';
+  document.getElementById('tab-new-ticket').style.color = tab === 'new' ? 'white' : '';
+  document.getElementById('tab-ticket-list').style.background = tab === 'list' ? 'var(--accent)' : '';
+  document.getElementById('tab-ticket-list').style.color = tab === 'list' ? 'white' : '';
+  if (tab === 'list') loadSupportTickets();
+}
+
+function handleSupportImage(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (file.size > 3 * 1024 * 1024) { toast('Imagen muy grande (max 3MB)', 'error'); return; }
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    supportImageData = e.target.result;
+    document.getElementById('support-preview').src = e.target.result;
+    document.getElementById('support-preview').style.display = '';
+    document.getElementById('support-drop-text').style.display = 'none';
+    document.getElementById('support-remove-img').style.display = '';
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearSupportImage() {
+  supportImageData = null;
+  document.getElementById('support-preview').style.display = 'none';
+  document.getElementById('support-drop-text').style.display = '';
+  document.getElementById('support-remove-img').style.display = 'none';
+  document.getElementById('support-image').value = '';
+}
+
+document.getElementById('support-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const body = {
+    reporter_name: document.getElementById('support-reporter').value,
+    description: document.getElementById('support-desc').value,
+    image_data: supportImageData
+  };
+  const res = await api('/projects/'+currentSupportProject+'/tickets', { method:'POST', body });
+  if (res.ok) {
+    toast('Ticket enviado ✅');
+    document.getElementById('support-reporter').value = '';
+    document.getElementById('support-desc').value = '';
+    clearSupportImage();
+  } else {
+    const err = await res.json();
+    toast(err.error || 'Error', 'error');
+  }
+});
+
+async function loadSupportTickets() {
+  const res = await api('/projects/'+currentSupportProject+'/tickets');
+  const list = document.getElementById('support-tickets-list');
+  if (!res.ok) { list.innerHTML = '<div class="empty">Error cargando tickets</div>'; return; }
+  const tickets = await res.json();
+  if (!tickets.length) { list.innerHTML = '<div class="empty">Sin tickets de soporte</div>'; return; }
+  list.innerHTML = tickets.map(t => {
+    const img = t.image_path ? '<img src="'+t.image_path+'" class="support-img" onclick="window.open(\''+t.image_path+'\')" style="margin-top:8px;">' : '';
+    const video = t.video_url ? '<div style="margin-top:8px;"><video src="'+t.video_url+'" controls style="width:100%;max-width:300px;border-radius:6px;background:#000;"></video><div style="font-size:10px;margin-top:4px;"><a href="'+t.video_url+'" target="_blank" style="color:var(--accent);">🔗 Abrir video en pestaña nueva</a></div></div>' : '';
+    const desc = t.description ? '<p style="font-size:12px;margin:4px 0;color:var(--muted);">'+esc(t.description)+'</p>' : '';
+    const date = t.created ? new Date(t.created+'Z').toLocaleString() : '';
+    return '<div class="ticket-card">'+
+      '<div style="display:flex;justify-content:space-between;align-items:center;">'+
+        '<strong style="font-size:13px;">'+esc(t.reporter_name)+'</strong>'+
+        '<span class="ticket-status '+t.status+'">'+t.status+'</span>'+
+      '</div>'+desc+img+video+
+      '<div style="font-size:10px;color:var(--muted);margin-top:6px;">'+date+'</div>'+
+      (t.status === 'open' ? '<button class="btn btn-sm btn-secondary" style="margin-top:6px;font-size:11px;" onclick="closeTicket('+t.id+')">✔ Cerrar ticket</button>' : '')+
+    '</div>';
+  }).join('');
+}
+
+async function closeTicket(ticketId) {
+  const res = await api('/tickets/'+ticketId, { method:'PUT', body:{status:'closed'} });
+  if (res.ok) { toast('Ticket cerrado'); loadSupportTickets(); }
+}
+
+// ── Dashboard ───────────────────────────
+async function openDashboard() {
+  document.getElementById('dashboard-modal').classList.add('active');
+  const res = await api('/dashboard');
+  if (!res.ok) { toast('Error cargando dashboard', 'error'); return; }
+  const d = await res.json();
+  renderDashboard(d);
+}
+function closeDashboard() { document.getElementById('dashboard-modal').classList.remove('active'); }
+
+function renderDashboard(d) {
+  // Summary cards
+  const t = d.totals;
+  const rate = t.total > 0 ? Math.round(t.done / t.total * 100) : 0;
+  document.getElementById('dash-summary').innerHTML =
+    '<div class="dash-card"><h4>Total tareas</h4><div class="big-num">'+t.total+'</div></div>'+
+    '<div class="dash-card"><h4>Tasa de completitud</h4><div class="big-num" style="color:'+(rate>=70?'var(--green)':rate>=40?'var(--amber)':'var(--red)')+'">'+rate+'%</div></div>'+
+    '<div class="dash-card"><h4>Tiempo promedio</h4><div class="big-num">'+(d.avgTime.avg_hours?Number(d.avgTime.avg_hours).toFixed(1)+'h':'--')+'</div><div style="font-size:11px;color:var(--muted);">Completadas: '+d.avgTime.completed_count+'</div></div>'+
+    '<div class="dash-card"><h4>Pendientes / En curso</h4><div class="big-num">'+t.todo+' / '+t.in_progress+'</div></div>';
+
+  // Velocity chart (created vs completed)
+  const vdiv = document.getElementById('velocity-chart');
+  if (d.velocity && d.velocity.length) {
+    const maxV = Math.max(...d.velocity.map(v=>Math.max(v.created,v.completed)), 1);
+    vdiv.innerHTML = '';
+    const w = Math.floor((vdiv.clientWidth - 20) / d.velocity.length);
+    d.velocity.forEach(v => {
+      const wrap = document.createElement('div');
+      wrap.className = 'chart-bar-wrap';
+      wrap.style.cssText = 'left:'+(d.velocity.indexOf(v)*w+10)+'px;width:'+(w-4)+'px;';
+      const ch = Math.max(v.completed/maxV*80,1);
+      const cr = Math.max(v.created/maxV*80,1);
+      wrap.innerHTML = '<div class="chart-bar" style="height:'+cr+'px;"></div><div class="chart-bar completed" style="height:'+ch+'px;"></div><div class="chart-label">'+v.day.substring(5)+'</div>';
+      vdiv.appendChild(wrap);
+    });
+    vdiv.innerHTML += '<div style="font-size:10px;color:var(--muted);margin-top:4px;display:flex;gap:12px;"><span>█ Creadas</span><span style="color:var(--green);">█ Completadas</span></div>';
+  } else vdiv.innerHTML = '<div class="empty" style="padding:20px;">Sin datos aún</div>';
+
+  // Per user
+  let userHTML = '';
+  d.byUser.forEach(u => {
+    const pct = u.assigned > 0 ? Math.round(u.completed/u.assigned*100) : 0;
+    const initials = u.name.split(' ').map(w=>w[0]).join('').substring(0,2);
+    userHTML += '<div class="dash-row"><span class="dash-label"><span class="avatar-sm">'+initials+'</span> '+esc(u.name)+'</span>'+
+      '<span class="dash-vals"><span>'+pct+'%</span><span style="color:var(--muted);">'+u.completed+'/'+u.assigned+'</span>'+
+      (u.avg_hours?'<span style="font-size:11px;">⏱'+Number(u.avg_hours).toFixed(0)+'h</span>':'')+
+      (u.overdue>0?'<span class="overdue-tag">'+u.overdue+' vencidas</span>':'')+'</span></div>'+
+      '<div class="dash-bar"><div class="dash-bar-fill" style="width:'+pct+'%;background:'+(pct>=70?'var(--green)':pct>=40?'var(--amber)':'var(--red)')+'"></div></div>';
+  });
+  document.getElementById('dash-users').innerHTML = userHTML || '<div class="empty">Sin usuarios</div>';
+
+  // Projects
+  let projHTML = '';
+  d.byProject.forEach(p => {
+    const pct = p.total > 0 ? Math.round(p.done/p.total*100) : 0;
+    projHTML += '<div class="dash-row"><span class="dash-label">📁 '+esc(p.name)+'</span>'+
+      '<span class="dash-vals"><span>'+pct+'%</span><span style="color:var(--muted);">'+p.done+'/'+p.total+'</span></span></div>'+
+      '<div class="dash-bar"><div class="dash-bar-fill" style="width:'+pct+'%;background:'+p.color+'"></div></div>';
+  });
+  document.getElementById('dash-projects').innerHTML = projHTML || '<div class="empty">Sin proyectos</div>';
+
+  // Priority & Complexity
+  let pcHTML = '<div class="dash-card"><h4>Por prioridad</h4>';
+  d.byPriority.forEach(p => {
+    const pct = p.total > 0 ? Math.round(p.done/p.total*100) : 0;
+    pcHTML += '<div class="dash-row"><span>'+p.priority+'</span><span style="color:var(--muted);">'+p.done+'/'+p.total+' ('+pct+'%)</span></div>'+
+      '<div class="dash-bar"><div class="dash-bar-fill" style="width:'+pct+'%;background:'+(p.priority==='high'?'var(--red)':p.priority==='medium'?'var(--amber)':'var(--blue)')+'"></div></div>';
+  });
+  pcHTML += '</div><div class="dash-card"><h4>Por complejidad</h4>';
+  d.byComplexity.forEach(c => {
+    const pct = c.total > 0 ? Math.round(c.done/c.total*100) : 0;
+    pcHTML += '<div class="dash-row"><span>'+c.complexity+'</span><span style="color:var(--muted);">'+c.done+'/'+c.total+' ('+pct+'%)</span></div>'+
+      '<div class="dash-bar"><div class="dash-bar-fill" style="width:'+pct+'%;background:'+(c.complexity==='high'?'var(--red)':c.complexity==='medium'?'var(--purple)':'var(--green)')+'"></div></div>';
+  });
+  pcHTML += '</div>';
+  document.getElementById('dash-pc').innerHTML = pcHTML;
+
+  // Overdue
+  let overdueHTML = '';
+  if (d.overdue.length) {
+    d.overdue.forEach(t => {
+      overdueHTML += '<div class="dash-row" style="background:rgba(239,68,68,.08);padding:6px;border-radius:4px;margin-bottom:4px;">'+
+        '<span>🔴 '+esc(t.title)+' <span style="font-size:10px;color:var(--muted);">'+esc(t.assignee_name||'')+'</span></span>'+
+        '<span class="overdue-tag">'+t.end_date+'</span></div>';
+    });
+  } else overdueHTML = '<div class="empty">¡Sin tareas vencidas! 🎉</div>';
+  document.getElementById('dash-overdue').innerHTML = overdueHTML;
+}
 
 async function refreshUserList() {
   const res = await api('/users'); const users = await res.json();

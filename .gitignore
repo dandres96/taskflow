@@ -2,3 +2,17 @@ node_modules/
 taskflow.db
 tunnel-url.txt
 .env
+
+# Test/scratch files (created by automation, not part of the app)
+__test_*.js
+_*.js
+_*.sh
+_*.jpg
+_r2keys.jpg
+
+# Local-only runtime artifacts
+server.test.log
+taskflow.db.bak.*
+
+# Optional startup scripts not used in image
+startup.sh

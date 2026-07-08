@@ -21,3 +21,9 @@ primary_region = "gru"
 [mounts]
   source = "taskflow_data"
   destination = "/data"
+
+[deploy]
+  # Sincroniza /data/public con la imagen Docker (/app/public) cada deploy.
+  # Garantiza que el HTML servido por /data/public (vía express.static) siempre
+  # sea la versión más reciente de la imagen, sin tener que entrar por SSH.
+  release_command = "mkdir -p /data/public && cp /app/public/index.html /data/public/index.html && cp /app/public/soporte.html /data/public/soporte.html 2>/dev/null; cp /app/server.js /data/server.js 2>/dev/null; echo '[release] /data/public synced from image'"

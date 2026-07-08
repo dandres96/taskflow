@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>Soporte — TaskFlow</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:#0f1117; color:#e1e4ed; min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px; }
+.card { background:#1a1d27; border:1px solid #2a2d3a; border-radius:12px; padding:32px; width:100%; max-width:460px; }
+h2 { font-size:20px; margin-bottom:4px; }
+.sub { color:#8b8fa3; font-size:13px; margin-bottom:20px; }
+label { display:block; font-size:12px; color:#8b8fa3; margin-bottom:4px; margin-top:12px; }
+select, input, textarea { width:100%; padding:10px 12px; background:#0f1117; border:1px solid #2a2d3a; border-radius:8px; color:#e1e4ed; font-size:14px; font-family:inherit; }
+textarea { resize:vertical; min-height:80px; }
+.btn { width:100%; padding:12px; background:#6366f1; color:white; border:none; border-radius:8px; font-size:15px; font-weight:600; cursor:pointer; margin-top:16px; transition:background .2s; }
+.btn:hover { background:#5558e6; }
+.btn:disabled { opacity:.5; cursor:not-allowed; }
+.dropzone { border:2px dashed #2a2d3a; border-radius:8px; padding:20px; text-align:center; cursor:pointer; margin-top:4px; transition:border-color .2s; }
+.dropzone:hover { border-color:#6366f1; }
+.dropzone img { max-width:100%; max-height:200px; border-radius:6px; margin-top:8px; }
+.toast { position:fixed; bottom:20px; right:20px; background:#22c55e; color:black; padding:10px 20px; border-radius:8px; font-size:13px; z-index:100; display:none; }
+.toast.error { background:#ef4444; color:white; }
+.success-msg { text-align:center; display:none; }
+.success-msg .icon { font-size:48px; margin-bottom:8px; }
+.remove-img { display:none; font-size:11px; color:#ef4444; cursor:pointer; margin-top:4px; }
+</style>
+</head>
+<body>
+<div class="card" id="form-card">
+  <div id="project-header" style="text-align:center;margin-bottom:16px;display:none;background:#ffffff;border-radius:12px;padding:16px;"><img id="project-image" style="max-width:120px;max-height:120px;border-radius:8px;display:inline-block;"></div>
+  <h2>🎫 Reportar un caso</h2>
+  <p class="sub">Proyecto: <strong id="project-name">Cargando...</strong></p>
+  <form id="support-form">
+    <label>Tu nombre *</label>
+    <input type="text" id="name" placeholder="Ej: Juan Pérez" required>
+    <label>Evidencia (captura de pantalla)</label>
+    <div style="display:flex;gap:8px;margin-bottom:8px;">
+      <button type="button" class="btn" style="flex:1;background:#1a1d27;border:1px solid var(--accent);color:var(--accent);margin:0;padding:10px;font-size:13px;" onclick="document.getElementById('image').click()">📁 Subir imagen</button>
+      <button type="button" class="btn" style="flex:1;background:#1a1d27;border:1px solid var(--accent);color:var(--accent);margin:0;padding:10px;font-size:13px;" onclick="captureScreen()">🖥️ Capturar pantalla</button>
+    </div>
+    <div class="dropzone">
+      <div id="drop-text">📷 Sin imagen seleccionada</div>
+      <img id="preview" style="display:none;">
+      <input type="file" id="image" accept="image/*" style="display:none;" onchange="handleImage(this)">
+    </div>
+    <div class="remove-img" id="remove-img" onclick="clearImage()">✕ Quitar imagen</div>
+
+    <label style="margin-top:16px;display:block;">🎬 Video del error (opcional, max 30s)</label>
+    <div style="display:flex;gap:8px;margin-bottom:8px;">
+      <button type="button" id="btn-record" class="btn" style="flex:1;background:#ef4444;color:white;margin:0;padding:10px;font-size:13px;" onclick="toggleRecord()">⏺ Grabar pantalla</button>
+      <span id="record-status" style="flex:1;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--muted);">Listo para grabar</span>
+    </div>
+    <div id="video-preview-wrap" style="display:none;margin-top:8px;background:#000;border-radius:8px;padding:8px;">
+      <video id="video-preview" controls style="width:100%;max-height:200px;border-radius:4px;"></video>
+      <button type="button" class="remove-img" style="display:block;" onclick="clearVideo()">✕ Quitar video</button>
+    </div>
+    <label>Descripción (opcional)</label>
+    <textarea id="desc" placeholder="Describí el problema..."></textarea>
+    <button type="submit" class="btn">📨 Enviar reporte</button>
+  </form>
+</div>
+
+<div class="success-msg" id="success">
+  <div class="icon">✅</div>
+  <h2>¡Caso de soporte enviado!</h2>
+  <p class="sub">Tu reporte fue registrado correctamente.</p>
+  <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:16px;margin:16px 0;text-align:left;font-size:13px;line-height:1.6;">
+    <p style="margin:4px 0;">📌 <strong>Número de caso:</strong> #<span id="success-ticket-id">—</span></p>
+    <p style="margin:4px 0;">📅 <strong>Fecha de envio:</strong> <span id="success-date">—</span></p>
+    <p style="margin:4px 0;">🔔 <strong>Notificación:</strong> Vas a ser notificado por correo o por este medio con la fecha de solución o comentarios del equipo.</p>
+    <p style="margin:8px 0 4px 0;font-size:12px;color:var(--muted);">Si necesitás agregar más información o hacer seguimiento, volvé a abrir este enlace.</p>
+  </div>
+  <button class="btn" onclick="resetForm()">Enviar otro reporte</button>
+</div>
+<noscript><div style="text-align:center;padding:20px;color:var(--muted);">Esta página requiere JavaScript habilitado.</div></noscript>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API = window.location.origin;
+const PROJECT_TOKEN = new URLSearchParams(location.search).get('p');
+let imageData = null;
+let videoBlob = null;
+let videoMimeType = 'video/webm';
+let mediaRecorder = null;
+let recordingChunks = [];
+
+if (!PROJECT_TOKEN) {
+  document.getElementById('form-card').innerHTML = '<h2>❌ Falta el proyecto</h2><p class="sub">Este enlace no es válido. Pedile al administrador uno nuevo.</p>';
+  throw new Error('No project token');
+}
+
+async function loadProject() {
+  try {
+    const res = await fetch(API + '/api/public/project/' + PROJECT_TOKEN);
+    if (!res.ok) throw new Error('Proyecto no encontrado');
+    const proj = await res.json();
+    document.getElementById('project-name').textContent = proj.name;
+    if (proj.image_path) {
+      document.getElementById('project-image').src = proj.image_path;
+      document.getElementById('project-header').style.display = '';
+    }
+  } catch(e) {
+    document.getElementById('project-name').textContent = '❌ Proyecto no encontrado';
+    document.getElementById('support-form').style.display = 'none';
+  }
+}
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+async function toggleRecord() {
+  const btn = document.getElementById('btn-record');
+  const status = document.getElementById('record-status');
+  if (mediaRecorder && mediaRecorder.state === 'recording') {
+    mediaRecorder.stop();
+    btn.textContent = '⏺ Grabar pantalla';
+    btn.style.background = '#ef4444';
+    status.textContent = 'Procesando...';
+    return;
+  }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+    toast('Tu navegador no soporta grabación de pantalla', 'error');
+    return;
+  }
+  try {
+    const stream = await navigator.mediaDevices.getDisplayMedia({ video: { cursor: 'always' }, audio: true });
+    recordingChunks = [];
+    const mime = MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' : (MediaRecorder.isTypeSupported('video/webm') ? 'video/webm' : 'video/mp4');
+    videoMimeType = mime.split(';')[0];
+    mediaRecorder = new MediaRecorder(stream, { mimeType: mime });
+    mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordingChunks.push(e.data); };
+    mediaRecorder.onstop = () => {
+      videoBlob = new Blob(recordingChunks, { type: videoMimeType });
+      const url = URL.createObjectURL(videoBlob);
+      document.getElementById('video-preview').src = url;
+      document.getElementById('video-preview-wrap').style.display = '';
+      status.textContent = '✅ ' + Math.round(videoBlob.size / 1024) + 'KB grabados';
+      stream.getTracks().forEach(t => t.stop());
+    };
+    mediaRecorder.start();
+    btn.textContent = '⏹ Detener grabación';
+    btn.style.background = '#22c55e';
+    status.textContent = '🔴 Grabando... click en detener cuando termines';
+    // Auto-stop after 30s
+    setTimeout(() => { if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop(); }, 30000);
+  } catch(ex) {
+    if (ex.name === 'NotAllowedError') toast('Grabación cancelada', 'error');
+    else toast('Error: ' + ex.message, 'error');
+  }
+}
+
+function clearVideo() {
+  videoBlob = null;
+  document.getElementById('video-preview').src = '';
+  document.getElementById('video-preview-wrap').style.display = 'none';
+  document.getElementById('record-status').textContent = 'Listo para grabar';
+}
+
+async function captureScreen() {
+  // Check if browser supports screen capture
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+    toast('Tu navegador no soporta captura de pantalla. Usa "Subir imagen".', 'error');
+    return;
+  }
+  try {
+    const stream = await navigator.mediaDevices.getDisplayMedia({ video: { cursor: 'always' }, audio: false });
+    const video = document.createElement('video');
+    video.srcObject = stream;
+    video.muted = true;
+    await video.play();
+    // Wait for video to be ready
+    await new Promise(r => setTimeout(r, 300));
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+    // Stop the stream
+    stream.getTracks().forEach(t => t.stop());
+    // Convert to base64
+    const dataUrl = canvas.toDataURL('image/png');
+    imageData = dataUrl;
+    document.getElementById('preview').src = dataUrl;
+    document.getElementById('preview').style.display = '';
+    document.getElementById('drop-text').style.display = 'none';
+    document.getElementById('drop-text').textContent = '📷 Captura lista';
+    document.getElementById('remove-img').style.display = '';
+    toast('Captura realizada ✅');
+  } catch (ex) {
+    if (ex.name === 'NotAllowedError') {
+      toast('Captura cancelada', 'error');
+    } else {
+      toast('Error: ' + ex.message, 'error');
+    }
+  }
+}
+
+function handleImage(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (file.size > 3 * 1024 * 1024) { toast('Imagen muy grande (max 3MB)', 'error'); return; }
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    imageData = e.target.result;
+    document.getElementById('preview').src = e.target.result;
+    document.getElementById('preview').style.display = '';
+    document.getElementById('drop-text').style.display = 'none';
+    document.getElementById('remove-img').style.display = '';
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearImage() {
+  imageData = null;
+  document.getElementById('preview').style.display = 'none';
+  document.getElementById('drop-text').style.display = '';
+  document.getElementById('remove-img').style.display = 'none';
+  document.getElementById('image').value = '';
+}
+
+document.getElementById('support-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = e.target.querySelector('button');
+  btn.disabled = true; btn.textContent = 'Enviando...';
+  try {
+    // Convert video to base64 if present
+    let videoData = null;
+    let videoFilename = null;
+    if (videoBlob) {
+      videoData = await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.readAsDataURL(videoBlob);
+      });
+      videoFilename = 'recording.' + (videoMimeType.includes('mp4') ? 'mp4' : 'webm');
+    }
+    const res = await fetch(API + '/api/public/tickets', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        project_token: PROJECT_TOKEN,
+        reporter_name: document.getElementById('name').value,
+        description: document.getElementById('desc').value,
+        image_data: imageData,
+        video_data: videoData,
+        video_filename: videoFilename
+      })
+    });
+    if (res.ok) {
+      const data = await res.json().catch(() => ({}));
+      document.getElementById('success-ticket-id').textContent = data.id || '?';
+      const now = new Date();
+      document.getElementById('success-date').textContent = now.toLocaleString('es-CO', { dateStyle: 'long', timeStyle: 'short' });
+      document.getElementById('form-card').style.display = 'none';
+      document.getElementById('success').style.display = 'block';
+      document.getElementById('success').style.visibility = 'visible';
+      document.getElementById('success').style.opacity = '1';
+    } else if (res.status === 413) {
+      toast('La imagen es demasiado grande. Max 3MB. Probá con otra o subila más chica.', 'error');
+    } else {
+      const err = await res.json().catch(() => ({}));
+      toast(err.error || ('Error ' + res.status), 'error');
+    }
+  } catch(ex) { toast('Error: ' + ex.message, 'error'); }
+  btn.disabled = false; btn.textContent = '📨 Enviar reporte';
+});
+
+function resetForm() {
+  document.getElementById('form-card').style.display = '';
+  document.getElementById('success').style.display = 'none';
+  document.getElementById('support-form').reset();
+  clearImage();
+}
+
+function toast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast '+(type||''); t.style.display = 'block';
+  setTimeout(() => t.style.display = 'none', 3000);
+}
+
+// Drag & drop
+const dropzone = document.querySelector('.dropzone');
+dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.style.borderColor = '#6366f1'; });
+dropzone.addEventListener('dragleave', () => { dropzone.style.borderColor = '#2a2d3a'; });
+dropzone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropzone.style.borderColor = '#2a2d3a';
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) {
+    document.getElementById('image').files = e.dataTransfer.files;
+    handleImage(document.getElementById('image'));
+  }
+});
+
+loadProject();
+</script>
+</body>
+</html>
