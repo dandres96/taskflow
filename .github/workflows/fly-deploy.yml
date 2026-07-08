@@ -1,0 +1,80 @@
+name: Deploy to Fly.io
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: fly-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Build & Deploy to Fly.io
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Verify config
+        run: |
+          flyctl config show --app taskflow-cwti
+          echo "--- fly.toml ---"
+          cat fly.toml
+
+      - name: Run fly deploy
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          flyctl deploy --app taskflow-cwti --remote-only
+          echo "DEPLOY_EXIT_CODE=$?"
+
+      - name: Wait for machine to be healthy
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          echo "Waiting for machine to start..."
+          sleep 15
+          for i in 1 2 3 4 5; do
+            STATUS=$(flyctl status --app taskflow-cwti -j 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('Machines', [{}])[0].get('state', 'unknown'))" 2>/dev/null || echo "unknown")
+            echo "Attempt $i: machine state = $STATUS"
+            if [ "$STATUS" = "started" ]; then
+              echo "Machine is healthy."
+              break
+            fi
+            sleep 10
+          done
+
+      - name: Verify deployment
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          echo "--- Releases ---"
+          flyctl releases --app taskflow-cwti
+          echo ""
+          echo "--- App status ---"
+          flyctl status --app taskflow-cwti
+          echo ""
+          echo "--- Smoke test ---"
+          curl -s -o /dev/null -w "HTTP %{http_code} | %{time_total}s\n" https://taskflow-cwti.fly.dev/
+          curl -s -o /dev/null -w "Login API: HTTP %{http_code}\n" \
+            -X POST https://taskflow-cwti.fly.dev/api/login \
+            -H "Content-Type: application/json" \
+            -d '{"email":"admin@taskflow.local","password":"admin123"}'
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "::error::Deploy failed. Check logs above."
+          echo "Run: flyctl logs --app taskflow-cwti"
