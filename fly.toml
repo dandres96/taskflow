@@ -1,6 +1,9 @@
 app = "taskflow-cwti"
 primary_region = "gru"
 
+[build]
+  dockerfile = "Dockerfile"
+
 [env]
   PORT = "3000"
   JWT_SECRET = "taskflow-prod-secret-2026"
