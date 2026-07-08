@@ -1,4 +1,4 @@
-name: Deploy to Fly.io
+name: Deploy to Fly.io (autoclaw pattern)
 
 on:
   push:
@@ -11,18 +11,13 @@ concurrency:
 
 jobs:
   deploy:
-    name: Build & Deploy to Fly.io
+    name: Sync files to Fly volume & restart machine
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
 
       - name: Install flyctl
         uses: superfly/flyctl-actions/setup-flyctl@master
@@ -34,48 +29,97 @@ jobs:
           flyctl auth token "$FLY_API_TOKEN"
           flyctl auth whoami
 
-      - name: Run fly deploy
+      - name: Get machine ID
+        id: get-machine
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
-          flyctl deploy --app taskflow-cwti --remote-only
-          echo "DEPLOY_EXIT_CODE=$?"
+          MACHINE_ID=$(flyctl machines list --app taskflow-cwti --json | python3 -c "import json,sys; d=json.load(sys.stdin); print(d[0]['id'])")
+          echo "machine_id=$MACHINE_ID" >> $GITHUB_OUTPUT
+          echo "Machine ID: $MACHINE_ID"
 
-      - name: Wait for machine to be healthy
+      - name: Upload index.html via SFTP
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
-          echo "Waiting for machine to start..."
+          # SFTP doesn't overwrite by default - remove first
+          flyctl ssh console --app taskflow-cwti -C "rm -f /data/public/index.html"
+          flyctl sftp put --app taskflow-cwti public/index.html /data/public/index.html
+          echo "Uploaded index.html"
+
+      - name: Upload soporte.html via SFTP
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          flyctl ssh console --app taskflow-cwti -C "rm -f /data/public/soporte.html"
+          flyctl sftp put --app taskflow-cwti public/soporte.html /data/public/soporte.html
+          echo "Uploaded soporte.html"
+
+      - name: Upload server.js via SFTP (if changed)
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          flyctl ssh console --app taskflow-cwti -C "rm -f /data/server.js"
+          flyctl sftp put --app taskflow-cwti server.js /data/server.js
+          echo "Uploaded server.js"
+
+      - name: Upload package.json via SFTP (if changed)
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          flyctl ssh console --app taskflow-cwti -C "rm -f /data/package.json"
+          flyctl sftp put --app taskflow-cwti package.json /data/package.json
+          echo "Uploaded package.json"
+
+      - name: Restart Node process
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          # The autoclaw pattern: sync /data/* to /app/* via start.sh, then restart
+          flyctl ssh console --app taskflow-cwti -C "cp /data/server.js /app/server.js && cp /data/public/index.html /app/public/index.html && cp /data/public/soporte.html /app/public/soporte.html && cp /data/package.json /app/package.json 2>/dev/null; kill 1 || true"
+          echo "Restart signal sent"
+
+      - name: Wait for restart
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
           sleep 15
           for i in 1 2 3 4 5; do
-            STATUS=$(flyctl status --app taskflow-cwti -j 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('Machines', [{}])[0].get('state', 'unknown'))" 2>/dev/null || echo "unknown")
-            echo "Attempt $i: machine state = $STATUS"
-            if [ "$STATUS" = "started" ]; then
-              echo "Machine is healthy."
+            HTTP=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 https://taskflow-cwti.fly.dev/ || echo "000")
+            echo "Attempt $i: HTTP $HTTP"
+            if [ "$HTTP" = "200" ]; then
+              echo "App is up."
               break
             fi
-            sleep 10
+            sleep 5
           done
 
-      - name: Verify deployment
+      - name: Smoke test
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
-          echo "--- Releases ---"
-          flyctl releases --app taskflow-cwti
-          echo ""
-          echo "--- App status ---"
-          flyctl status --app taskflow-cwti
-          echo ""
-          echo "--- Smoke test ---"
-          curl -s -o /dev/null -w "HTTP %{http_code} | %{time_total}s\n" https://taskflow-cwti.fly.dev/
-          curl -s -o /dev/null -w "Login API: HTTP %{http_code}\n" \
+          echo "--- Home page ---"
+          curl -s -o /dev/null -w "HTTP %{http_code}\n" https://taskflow-cwti.fly.dev/
+          echo "--- Login API ---"
+          curl -s -o /dev/null -w "HTTP %{http_code}\n" \
             -X POST https://taskflow-cwti.fly.dev/api/login \
             -H "Content-Type: application/json" \
             -d '{"email":"admin@taskflow.local","password":"admin123"}'
+          echo "--- Toolbar visible? ---"
+          HTML=$(curl -s https://taskflow-cwti.fly.dev/)
+          if echo "$HTML" | grep -q '<div class="toolbar"'; then
+            if echo "$HTML" | grep -q 'class="toolbar" style="display: none;"'; then
+              echo "❌ TOOLBAR STILL HIDDEN"
+              exit 1
+            else
+              echo "✅ Toolbar visible"
+            fi
+          else
+            echo "⚠️  Could not find toolbar class"
+          fi
 
       - name: Notify on failure
         if: failure()
         run: |
           echo "::error::Deploy failed. Check logs above."
-          echo "Run: flyctl logs --app taskflow-cwti"
+          flyctl logs --app taskflow-cwti || true
