@@ -71,30 +71,34 @@ jobs:
           flyctl sftp put --app taskflow-cwti package.json /data/package.json
           echo "Uploaded package.json"
 
-      - name: Restart Node process
+      - name: Restart machine
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
-          # Restart Node.js forcefully. The autoclaw pattern:
-          # 1. Sync /data/* to /app/* (so the running process picks up server.js)
-          # 2. Kill the running node process
-          # 3. If start.sh exists, run it (which restarts node)
-          # 4. If not, manually restart node in background
-          flyctl ssh console --app taskflow-cwti -C "sh -c 'cp /data/server.js /app/server.js 2>/dev/null; cp /data/public/index.html /app/public/index.html 2>/dev/null; cp /data/public/soporte.html /app/public/soporte.html 2>/dev/null; pkill -f \"node server.js\" || true; sleep 2; if [ -f /app/start.sh ]; then sh /app/start.sh > /tmp/start.log 2>&1 & else nohup node /app/server.js > /tmp/node.log 2>&1 & fi; sleep 3; echo restart-done'" 2>&1 || echo "restart cmd failed"
+          MACHINE_ID=$(cat ${{ steps.get-machine.outputs.machine_id }})
+          # First sync the latest /data/* files into /app/* so when the machine
+          # boots up, it picks up the new server.js / index.html
+          flyctl ssh console --app taskflow-cwti -C "cp /data/server.js /app/server.js && cp /data/public/index.html /app/public/index.html && cp /data/public/soporte.html /app/public/soporte.html && cp /data/package.json /app/package.json 2>/dev/null; echo sync-done"
+          # Now restart the entire machine - this guarantees a fresh node process
+          # with the new server.js
+          flyctl machine restart "$MACHINE_ID" --app taskflow-cwti
+          echo "machine restart signal sent"
 
       - name: Wait for restart
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
-          sleep 15
-          for i in 1 2 3 4 5; do
+          # Machine restart can take 20-30s, then Node needs to boot
+          echo "Waiting for machine to come back..."
+          sleep 30
+          for i in 1 2 3 4 5 6 7 8; do
             HTTP=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 https://taskflow-cwti.fly.dev/ || echo "000")
             echo "Attempt $i: HTTP $HTTP"
             if [ "$HTTP" = "200" ]; then
               echo "App is up."
               break
             fi
-            sleep 5
+            sleep 8
           done
 
       - name: Smoke test
