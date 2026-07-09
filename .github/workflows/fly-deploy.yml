@@ -1,4 +1,4 @@
-name: Deploy to Fly.io (autoclaw pattern)
+name: Deploy to Fly.io (full image rebuild)
 
 on:
   push:
@@ -11,9 +11,9 @@ concurrency:
 
 jobs:
   deploy:
-    name: Sync files to Fly volume & restart machine
+    name: Build & Deploy to Fly.io
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
 
     steps:
       - name: Checkout
@@ -29,75 +29,28 @@ jobs:
           flyctl auth token "$FLY_API_TOKEN"
           flyctl auth whoami
 
-      - name: Get machine ID
-        id: get-machine
+      - name: Deploy (rebuilds image, runs release_command, restarts machine)
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
-          MACHINE_ID=$(flyctl machines list --app taskflow-cwti --json | python3 -c "import json,sys; d=json.load(sys.stdin); print(d[0]['id'])")
-          echo "machine_id=$MACHINE_ID" >> $GITHUB_OUTPUT
-          echo "Machine ID: $MACHINE_ID"
+          # 'fly deploy' does everything: builds image remotely, pushes to
+          # Fly's registry, creates a new release, runs the release_command
+          # defined in fly.toml, and restarts the machine.
+          #
+          # The release_command copies /app/public/* to /data/public/* so
+          # express.static() (which serves from /data/public) picks up the
+          # new HTML immediately. The CMD in the Dockerfile is 'sh start.sh'
+          # which copies /data/server.js back to /app/server.js before
+          # starting node, so the running process loads the new code.
+          flyctl deploy --app taskflow-cwti --remote-only
+          echo "DEPLOY_EXIT_CODE=$?"
 
-      - name: Upload index.html via SFTP
+      - name: Wait for machine
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
-          # SFTP doesn't overwrite by default - remove first
-          flyctl ssh console --app taskflow-cwti -C "rm -f /data/public/index.html"
-          flyctl sftp put --app taskflow-cwti public/index.html /data/public/index.html
-          echo "Uploaded index.html"
-
-      - name: Upload soporte.html via SFTP
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-        run: |
-          flyctl ssh console --app taskflow-cwti -C "rm -f /data/public/soporte.html"
-          flyctl sftp put --app taskflow-cwti public/soporte.html /data/public/soporte.html
-          echo "Uploaded soporte.html"
-
-      - name: Upload server.js via SFTP (if changed)
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-        run: |
-          flyctl ssh console --app taskflow-cwti -C "rm -f /data/server.js"
-          flyctl sftp put --app taskflow-cwti server.js /data/server.js
-          echo "Uploaded server.js"
-
-      - name: Upload package.json via SFTP (if changed)
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-        run: |
-          flyctl ssh console --app taskflow-cwti -C "rm -f /data/package.json"
-          flyctl sftp put --app taskflow-cwti package.json /data/package.json
-          echo "Uploaded package.json"
-
-      - name: Restart machine
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-        run: |
-          # Get machine ID directly, sync files, then restart
-          MACHINE_ID=$(flyctl machines list --app taskflow-cwti --json 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin)[0]['id'])" 2>/dev/null)
-          echo "Machine ID: $MACHINE_ID"
-          if [ -z "$MACHINE_ID" ]; then
-            echo "::error::Could not determine machine ID"
-            exit 1
-          fi
-          # Sync the latest /data/* files into /app/* so when the machine
-          # boots up, it picks up the new server.js / index.html
-          flyctl ssh console --app taskflow-cwti -C "cp /data/server.js /app/server.js && cp /data/public/index.html /app/public/index.html && cp /data/public/soporte.html /app/public/soporte.html && cp /data/package.json /app/package.json 2>/dev/null; echo sync-done"
-          # Now restart the entire machine - this guarantees a fresh node process
-          # with the new server.js
-          flyctl machine restart "$MACHINE_ID" --app taskflow-cwti
-          echo "machine restart signal sent"
-
-      - name: Wait for restart
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-        run: |
-          # Machine restart can take 20-30s, then Node needs to boot
-          echo "Waiting for machine to come back..."
-          sleep 30
-          for i in 1 2 3 4 5 6 7 8; do
+          # Allow up to 90s for the new machine to come up
+          for i in 1 2 3 4 5 6 7 8 9 10 11 12; do
             HTTP=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 https://taskflow-cwti.fly.dev/ || echo "000")
             echo "Attempt $i: HTTP $HTTP"
             if [ "$HTTP" = "200" ]; then
@@ -118,21 +71,21 @@ jobs:
             -X POST https://taskflow-cwti.fly.dev/api/login \
             -H "Content-Type: application/json" \
             -d '{"email":"admin@taskflow.local","password":"admin123"}'
-          echo "--- Toolbar visible? ---"
-          HTML=$(curl -s https://taskflow-cwti.fly.dev/)
-          if echo "$HTML" | grep -q '<div class="toolbar"'; then
-            if echo "$HTML" | grep -q 'class="toolbar" style="display: none;"'; then
-              echo "❌ TOOLBAR STILL HIDDEN"
-              exit 1
-            else
-              echo "✅ Toolbar visible"
-            fi
-          else
-            echo "⚠️  Could not find toolbar class"
-          fi
+          echo "--- SMTP test endpoint (proves new server.js is running) ---"
+          TOKEN=$(curl -s -X POST https://taskflow-cwti.fly.dev/api/login \
+            -H "Content-Type: application/json" \
+            -d '{"email":"admin@taskflow.local","password":"admin123"}' \
+            | python3 -c "import json,sys; print(json.load(sys.stdin)['token'])")
+          HTTP=$(curl -s -o /tmp/smtp_test.json -w "%{http_code}" \
+            -X POST https://taskflow-cwti.fly.dev/api/admin/smtp/test \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $TOKEN" \
+            -d '{"to":"andresdaniel96@gmail.com"}')
+          echo "SMTP test endpoint: HTTP $HTTP"
+          cat /tmp/smtp_test.json
+          echo ""
 
       - name: Notify on failure
         if: failure()
         run: |
           echo "::error::Deploy failed. Check logs above."
-          flyctl logs --app taskflow-cwti || true

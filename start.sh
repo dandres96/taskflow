@@ -23,15 +23,17 @@ else
   echo "[start.sh] WARNING: /data/server.js not found, using bundled version"
 fi
 
-# Sync public/index.html
-if [ -f /data/index.html ]; then
-  cp /data/index.html /app/public/index.html
+# Sync public/index.html (FIXED: was /data/index.html, should be /data/public/index.html)
+if [ -f /data/public/index.html ]; then
+  cp /data/public/index.html /app/public/index.html
   echo "[start.sh] Synced index.html"
+else
+  echo "[start.sh] WARNING: /data/public/index.html not found, using bundled version"
 fi
 
 # Sync public/soporte.html
-if [ -f /data/soporte.html ]; then
-  cp /data/soporte.html /app/public/soporte.html
+if [ -f /data/public/soporte.html ]; then
+  cp /data/public/soporte.html /app/public/soporte.html
   echo "[start.sh] Synced soporte.html"
 fi
 
@@ -54,4 +56,6 @@ fi
 
 echo "[start.sh] Starting server..."
 cd /app
-node server.js
+# Use exec so node becomes PID 1 (important for proper signal handling
+# and for 'fly machine restart' / 'kill 1' to work cleanly).
+exec node server.js
