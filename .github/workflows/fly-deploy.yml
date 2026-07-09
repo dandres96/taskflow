@@ -75,10 +75,12 @@ jobs:
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
-          # Try multiple restart approaches - whichever works
-          flyctl ssh console --app taskflow-cwti -C "sh /app/start.sh || true" 2>&1 || echo "start.sh failed, trying kill"
-          sleep 5
-          flyctl ssh console --app taskflow-cwti -C "kill 1 || pkill node || true" 2>&1 || echo "kill failed"
+          # Restart Node.js forcefully. The autoclaw pattern:
+          # 1. Sync /data/* to /app/* (so the running process picks up server.js)
+          # 2. Kill the running node process
+          # 3. If start.sh exists, run it (which restarts node)
+          # 4. If not, manually restart node in background
+          flyctl ssh console --app taskflow-cwti -C "sh -c 'cp /data/server.js /app/server.js 2>/dev/null; cp /data/public/index.html /app/public/index.html 2>/dev/null; cp /data/public/soporte.html /app/public/soporte.html 2>/dev/null; pkill -f \"node server.js\" || true; sleep 2; if [ -f /app/start.sh ]; then sh /app/start.sh > /tmp/start.log 2>&1 & else nohup node /app/server.js > /tmp/node.log 2>&1 & fi; sleep 3; echo restart-done'" 2>&1 || echo "restart cmd failed"
 
       - name: Wait for restart
         env:
