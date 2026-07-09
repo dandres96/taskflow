@@ -432,8 +432,9 @@ function showApp() {
     document.getElementById('btn-dashboard').style.display = '';
     document.getElementById('btn-users').style.display = '';
   } else {
-    // Dev: hide assignee filter and form field
-    document.getElementById('filter-assignee').parentElement.style.display = 'none';
+    // Dev: hide assignee filter (just the select, not its parent toolbar)
+    // and hide the assignee field in the new-task modal
+    document.getElementById('filter-assignee').style.display = 'none';
     document.getElementById('task-assignee').parentElement.style.display = 'none';
   }
   loadProjects();
