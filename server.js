@@ -30,9 +30,15 @@ if (R2_ACCOUNT_ID && R2_ACCESS_KEY && R2_SECRET_KEY && global.S3) {
   console.log('R2 storage disabled (missing env vars or aws-sdk)');
 }
 
-// SMTP config (set via env vars)
-const SMTP_HOST = process.env.SMTP_HOST || '';
-const SMTP_PORT = process.env.SMTP_PORT || 587;
+// SMTP config (set via env vars or Fly secrets)
+// Recommended free provider: Brevo (ex-Sendinblue) — 300 emails/day free tier
+// Sign up at https://www.brevo.com and create an SMTP key at
+// https://app.brevo.com/settings/keys/smtp
+// Then run: fly secrets set SMTP_HOST="smtp-relay.brevo.com" SMTP_PORT="587" \
+//   SMTP_USER="your-brevo-login-email" SMTP_PASS="xsmtpsib-your-key" \
+//   SMTP_FROM="taskflow@yourdomain.com" --app taskflow-cwti
+const SMTP_HOST = process.env.SMTP_HOST || 'smtp-relay.brevo.com';
+const SMTP_PORT = parseInt(process.env.SMTP_PORT || '587', 10);
 const SMTP_USER = process.env.SMTP_USER || '';
 const SMTP_PASS = process.env.SMTP_PASS || '';
 const SMTP_FROM = process.env.SMTP_FROM || 'taskflow@noreply.com';
@@ -161,6 +167,32 @@ async function sendDeadlineEmails() {
 
 // Check deadlines every hour
 setInterval(sendDeadlineEmails, 3600000);
+
+// ── Admin: SMTP test endpoint ──────────────────────
+app.post('/api/admin/smtp/test', auth, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Solo admin' });
+  if (!mailer) return res.status(400).json({ error: 'SMTP no configurado (faltan SMTP_HOST/USER/PASS)' });
+  const { to } = req.body;
+  if (!to) return res.status(400).json({ error: 'Falta campo "to"' });
+  try {
+    await mailer.sendMail({
+      from: SMTP_FROM,
+      to,
+      subject: 'TaskFlow: prueba SMTP',
+      text: 'Este es un email de prueba enviado desde TaskFlow.\n\nSi lo recibiste, el SMTP está configurado correctamente.\n\n— Equipo TaskFlow'
+    });
+    res.json({ ok: true, sent_to: to });
+  } catch (e) {
+    res.status(500).json({ error: 'Error SMTP: ' + e.message });
+  }
+});
+
+// Admin: run deadline check now (don't wait for the hourly cron)
+app.post('/api/admin/smtp/run-deadline-check', auth, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Solo admin' });
+  await sendDeadlineEmails();
+  res.json({ ok: true });
+});
 
 // ── Public Routes (no auth) ───────────────────────
 // Public project info by token
