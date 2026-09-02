@@ -397,6 +397,80 @@ app.post('/api/tasks', auth, (req, res) => {
   res.json(qget('SELECT t.*, u.name as assignee_name, p.name as project_name, p.color as project_color FROM tasks t LEFT JOIN users u ON t.assignee_id = u.id LEFT JOIN projects p ON t.project_id = p.id WHERE t.id = ?', [id]));
 });
 
+// Importacion masiva desde Excel/CSV. El fichero se parsea en el navegador
+// (sin dependencias nuevas: el deploy por imagen esta bloqueado), aqui solo
+// llegan filas ya normalizadas. Se inserta todo en un solo saveDB(): qinsert()
+// reescribe el fichero .db entero en cada llamada, asi que insertar 200 tareas
+// de una en una serian 200 volcados completos del disco.
+const IMPORT_MAX = 500;
+const OK_STATUS = ['todo', 'in-progress', 'done'];
+const OK_LEVEL = ['low', 'medium', 'high'];
+
+app.post('/api/tasks/import', auth, (req, res) => {
+  const { project_id, tasks } = req.body || {};
+  if (!Array.isArray(tasks) || !tasks.length) return res.status(400).json({ error: 'No hay filas para importar' });
+  if (tasks.length > IMPORT_MAX) return res.status(400).json({ error: 'Maximo ' + IMPORT_MAX + ' tareas por importacion (llegaron ' + tasks.length + ')' });
+
+  const projId = project_id ? Number(project_id) : null;
+  if (projId && !qget('SELECT id FROM projects WHERE id = ?', [projId])) {
+    return res.status(400).json({ error: 'El proyecto no existe' });
+  }
+
+  const isAdmin = req.user.role === 'admin';
+  const validUsers = new Set(qall('SELECT id FROM users').map(u => u.id));
+
+  const clean = [];
+  const errors = [];
+  tasks.forEach((t, i) => {
+    const row = t && t._row ? t._row : i + 1;
+    const title = String((t && t.title) || '').trim().slice(0, 500);
+    if (!title) { errors.push({ row, error: 'Sin titulo' }); return; }
+
+    // Los devs solo pueden asignarse tareas a si mismos (igual que POST /api/tasks).
+    let assignee = null;
+    if (isAdmin) {
+      const a = t.assignee_id ? Number(t.assignee_id) : null;
+      if (a && validUsers.has(a)) assignee = a;
+      else if (a) errors.push({ row, error: 'Usuario ' + a + ' no existe, queda sin asignar' });
+    } else {
+      assignee = req.user.id;
+    }
+
+    clean.push([
+      title,
+      String((t.description || '')).trim().slice(0, 5000),
+      OK_STATUS.includes(t.status) ? t.status : 'todo',
+      OK_LEVEL.includes(t.priority) ? t.priority : 'medium',
+      OK_LEVEL.includes(t.complexity) ? t.complexity : 'medium',
+      projId,
+      assignee,
+      req.user.id,
+      isDate(t.start_date) ? t.start_date : null,
+      isDate(t.end_date) ? t.end_date : null
+    ]);
+  });
+
+  if (!clean.length) return res.status(400).json({ error: 'Ninguna fila tenia titulo', errors });
+
+  const sql = 'INSERT INTO tasks (title, description, status, priority, complexity, project_id, assignee_id, created_by, start_date, end_date, source) VALUES (?,?,?,?,?,?,?,?,?,?,\'import\')';
+  const first = qget('SELECT COALESCE(MAX(id),0) as m FROM tasks').m;
+  try {
+    const stmt = db.prepare(sql);
+    for (const params of clean) { stmt.bind(params); stmt.step(); stmt.reset(); }
+    stmt.free();
+  } catch (e) {
+    return res.status(500).json({ error: 'Error al insertar: ' + e.message });
+  }
+  saveDB();
+
+  const created = qall(`SELECT t.*, u.name as assignee_name, p.name as project_name, p.color as project_color
+    FROM tasks t LEFT JOIN users u ON t.assignee_id = u.id LEFT JOIN projects p ON t.project_id = p.id
+    WHERE t.id > ? ORDER BY t.id`, [first]);
+  res.json({ inserted: created.length, skipped: tasks.length - clean.length, errors, tasks: created });
+});
+
+function isDate(v) { return typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) && !isNaN(Date.parse(v)); }
+
 app.put('/api/tasks/:id', auth, (req, res) => {
   const { title, description, status, priority, complexity, assignee_id, project_id, start_date, end_date } = req.body;
   const task = qget('SELECT * FROM tasks WHERE id = ?', [req.params.id]);

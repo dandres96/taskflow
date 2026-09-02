@@ -10,6 +10,28 @@
 body { font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; overflow-wrap:break-word; }
 .container { max-width: 1280px; margin: 0 auto; padding: 0 20px; }
 
+/* Importador de Excel */
+.imp-drop { border:2px dashed var(--border); border-radius:10px; padding:28px 16px; text-align:center; cursor:pointer; transition:border-color .15s, background .15s; }
+.imp-drop:hover, .imp-drop.over { border-color:var(--accent); background:rgba(99,102,241,.06); }
+.imp-drop .imp-big { font-size:15px; margin-bottom:4px; }
+.imp-drop .imp-sub { font-size:12px; color:var(--muted); }
+.imp-hint { font-size:12px; color:var(--muted); margin-bottom:16px; line-height:1.5; }
+.imp-hint a { color:var(--accent); cursor:pointer; text-decoration:underline; }
+.imp-h4 { font-size:13px; margin:18px 0 8px; display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
+.imp-h4 span { font-size:11px; font-weight:400; color:var(--muted); }
+.imp-map { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:8px; }
+.imp-map label { display:block; font-size:11px; color:var(--muted); margin-bottom:3px; }
+.imp-map select { width:100%; min-width:0; padding:7px 8px; background:var(--bg); border:1px solid var(--border); border-radius:6px; color:var(--text); font-size:12px; }
+.imp-map .req label::after { content:' *'; color:var(--red); }
+.imp-tablewrap { overflow-x:auto; border:1px solid var(--border); border-radius:8px; }
+.imp-table { border-collapse:collapse; font-size:11px; width:100%; }
+.imp-table th, .imp-table td { padding:6px 8px; border-bottom:1px solid var(--border); text-align:left; white-space:nowrap; max-width:220px; overflow:hidden; text-overflow:ellipsis; }
+.imp-table th { color:var(--muted); font-weight:500; background:var(--bg); position:sticky; top:0; }
+.imp-table tr:last-child td { border-bottom:none; }
+.imp-table td.imp-bad { color:var(--red); }
+.imp-notes { margin-top:10px; font-size:11px; line-height:1.6; color:var(--amber); }
+.imp-notes div { overflow-wrap:anywhere; }
+
 /* Login */
 #login-page { display:flex; align-items:center; justify-content:center; min-height:100vh; }
 .login-box { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:40px; width:100%; max-width:400px; }
@@ -208,6 +230,7 @@ header h1 span { color:var(--accent); }
     <div class="main">
       <div class="toolbar">
         <button class="btn btn-primary" onclick="openNewTask()">+ Nueva tarea</button>
+        <button class="btn btn-secondary" onclick="openImport()" title="Importar tareas desde Excel o CSV">⬇️ Importar</button>
         <select id="filter-status" onchange="loadTasks()">
           <option value="all">Todos</option>
           <option value="todo">Por hacer</option>
@@ -273,6 +296,42 @@ header h1 span { color:var(--accent); }
         <input type="text" id="comment-input" placeholder="Agregar comentario..." style="flex:1;padding:8px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;">
         <button class="btn btn-primary btn-sm" onclick="addComment()">Enviar</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Import Modal -->
+<div class="modal-overlay" id="import-modal">
+  <div class="modal" style="max-width:840px;">
+    <h2>⬇️ Importar tareas</h2>
+    <p class="imp-hint">Sube un <b>.xlsx</b> o <b>.csv</b> con una fila por tarea y la cabecera en la primera fila.
+      Las columnas se detectan solas; puedes corregir la correspondencia antes de importar.
+      &nbsp;<a onclick="impDownloadTemplate()">Descargar plantilla CSV</a></p>
+
+    <div id="imp-step-file">
+      <div class="imp-drop" id="imp-drop" onclick="document.getElementById('imp-file').click()">
+        <div class="imp-big">📄 Arrastra el archivo aquí o haz click para elegirlo</div>
+        <div class="imp-sub">.xlsx · .csv — hasta 500 tareas por importación</div>
+      </div>
+      <input type="file" id="imp-file" accept=".xlsx,.csv,.txt,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" style="display:none" onchange="impPickFile(this.files[0])">
+    </div>
+
+    <div id="imp-step-map" style="display:none">
+      <div class="form-row">
+        <div class="form-group"><label>Proyecto destino</label><select id="imp-project"></select></div>
+        <div class="form-group" id="imp-sheet-wrap"><label>Hoja</label><select id="imp-sheet" onchange="impSelectSheet(this.value)"></select></div>
+      </div>
+      <div class="imp-h4">Correspondencia de columnas <span id="imp-file-name"></span></div>
+      <div class="imp-map" id="imp-map"></div>
+      <div class="imp-h4">Vista previa <span id="imp-summary"></span></div>
+      <div class="imp-tablewrap"><table class="imp-table" id="imp-preview"></table></div>
+      <div class="imp-notes" id="imp-notes"></div>
+    </div>
+
+    <div class="modal-actions">
+      <button type="button" class="btn btn-secondary btn-sm" style="margin-right:auto;display:none" id="imp-back" onclick="impReset()">← Otro archivo</button>
+      <button type="button" class="btn btn-secondary btn-sm" onclick="closeImport()">Cancelar</button>
+      <button type="button" class="btn btn-primary btn-sm" id="imp-go" onclick="impRun()" disabled>Importar</button>
     </div>
   </div>
 </div>
@@ -422,6 +481,7 @@ let token = localStorage.getItem('taskflow_token');
 let currentUser = null;
 let currentProject = null;
 let projects = [];
+let allUsers = [];   // lo llena loadUsers(); lo usa el importador para resolver 'Asignado a'
 
 if (token) checkToken();
 
@@ -741,6 +801,7 @@ async function loadUsers() {
   if (currentUser.role !== 'admin') return;
   try {
     const res = await api('/users'); const users = await res.json();
+    allUsers = users;
     const sel = document.getElementById('filter-assignee');
     sel.innerHTML = '<option value="all">Todos</option>';
     users.forEach(u => { sel.innerHTML += '<option value="'+u.id+'">'+esc(u.name)+'</option>'; });
@@ -998,6 +1059,488 @@ document.getElementById('user-form').addEventListener('submit', async (e) => {
   if (res.ok) { document.getElementById('user-name').value=''; document.getElementById('user-email').value=''; document.getElementById('user-password').value=''; refreshUserList(); loadUsers(); toast('Usuario creado'); }
   else { const err = await res.json(); toast(err.error||'Error', 'error'); }
 });
+
+// ── Importador de tareas desde Excel/CSV ─────────────
+// El fichero se parsea entero en el navegador y al servidor solo le llegan
+// filas ya normalizadas. Es a propósito: esta app no carga ni un recurso
+// externo y el deploy por imagen está bloqueado, así que añadir una librería
+// (SheetJS por CDN, o una dependencia npm) no era una opción. Un .xlsx es un
+// ZIP de XMLs y el navegador ya sabe inflar con DecompressionStream.
+
+const IMP_MAX = 500;
+
+const IMP_FIELDS = [
+  { key:'title',       label:'Título',       req:true,
+    aliases:['titulo','title','tarea','task','nombre','asunto','resumen','summary','actividad','item'] },
+  { key:'description', label:'Descripción',
+    aliases:['descripcion','description','detalle','detalles','notas','nota','observaciones','comentario','comentarios'] },
+  { key:'priority',    label:'Prioridad',
+    aliases:['prioridad','priority','prio','importancia'] },
+  { key:'complexity',  label:'Complejidad',
+    aliases:['complejidad','complexity','esfuerzo','dificultad','effort','estimacion'] },
+  { key:'status',      label:'Estado',
+    aliases:['estado','status','situacion','etapa','fase','columna'] },
+  { key:'assignee',    label:'Asignado a',
+    aliases:['asignado','asignado a','asignada','asignada a','responsable','encargado','encargada','assignee','owner','usuario','email','correo','e mail'] },
+  { key:'start_date',  label:'Fecha inicio',
+    aliases:['inicio','fecha inicio','fecha de inicio','start','start date','fecha comienzo','desde','fecha'] },
+  { key:'end_date',    label:'Fecha fin',
+    aliases:['fin','fecha fin','fecha de fin','vencimiento','fecha vencimiento','fecha limite','deadline','end','end date','due','due date','entrega','fecha entrega','hasta','fecha final'] }
+];
+
+const IMP_LEVEL = { baja:'low', bajo:'low', low:'low', minor:'low', menor:'low', '1':'low',
+  media:'medium', medio:'medium', medium:'medium', normal:'medium', '2':'medium',
+  alta:'high', alto:'high', high:'high', urgente:'high', urgent:'high', critica:'high', critico:'high', bloqueante:'high', '3':'high' };
+
+const IMP_STATUS = { 'por hacer':'todo', pendiente:'todo', pendientes:'todo', todo:'todo', 'to do':'todo',
+  nuevo:'todo', nueva:'todo', abierta:'todo', abierto:'todo', backlog:'todo', 'sin empezar':'todo',
+  'en progreso':'in-progress', 'en curso':'in-progress', 'in progress':'in-progress', 'inprogress':'in-progress',
+  doing:'in-progress', proceso:'in-progress', 'en proceso':'in-progress', wip:'in-progress', 'en desarrollo':'in-progress', activa:'in-progress',
+  completado:'done', completada:'done', completo:'done', hecho:'done', hecha:'done', done:'done', finalizado:'done',
+  finalizada:'done', terminado:'done', terminada:'done', cerrado:'done', cerrada:'done', listo:'done', lista:'done', closed:'done' };
+
+let impState = null; // { fileName, sheets, readSheet, sheetIdx, rows, headers, map }
+
+// ── ZIP + XLSX ───────────────────────────
+function impUnzip(buf) {
+  const dv = new DataView(buf), u8 = new Uint8Array(buf);
+  // El "End of Central Directory" (firma 0x06054b50) vive al final del fichero,
+  // detrás de un comentario de hasta 64 KB, así que se busca hacia atrás.
+  let eocd = -1;
+  for (let i = u8.length - 22; i >= Math.max(0, u8.length - 65558); i--) {
+    if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+  }
+  if (eocd < 0) throw new Error('El archivo no es un .xlsx válido (no se encontró el índice del ZIP).');
+  const n = dv.getUint16(eocd + 10, true);
+  let off = dv.getUint32(eocd + 16, true);
+  const dec = new TextDecoder();
+  const files = {};
+  for (let i = 0; i < n; i++) {
+    if (off + 46 > u8.length || dv.getUint32(off, true) !== 0x02014b50) break;
+    const method = dv.getUint16(off + 10, true);
+    const csize = dv.getUint32(off + 20, true);
+    const nameLen = dv.getUint16(off + 28, true);
+    const extraLen = dv.getUint16(off + 30, true);
+    const cmtLen = dv.getUint16(off + 32, true);
+    const local = dv.getUint32(off + 42, true);
+    const name = dec.decode(u8.subarray(off + 46, off + 46 + nameLen));
+    // El header local repite nombre y extra con longitudes propias (su campo
+    // "extra" suele diferir del que hay aquí), hay que releerlas de allí.
+    const lNameLen = dv.getUint16(local + 26, true);
+    const lExtraLen = dv.getUint16(local + 28, true);
+    const start = local + 30 + lNameLen + lExtraLen;
+    files[name] = { method, data: u8.subarray(start, start + csize) };
+    off += 46 + nameLen + extraLen + cmtLen;
+  }
+  return files;
+}
+
+async function impEntry(files, name) {
+  const f = files[name];
+  if (!f) return null;
+  if (f.method === 0) return new TextDecoder().decode(f.data);        // guardado sin comprimir
+  if (f.method !== 8) throw new Error('El .xlsx usa una compresión no soportada (método ' + f.method + ').');
+  if (typeof DecompressionStream === 'undefined') throw new Error('Tu navegador no puede leer .xlsx aquí. Guarda el archivo como CSV e inténtalo de nuevo.');
+  const stream = new Blob([f.data]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+  return await new Response(stream).text();
+}
+
+// "BC12" → 54. Las celdas traen su referencia y las vacías no aparecen, así
+// que sin esto las columnas se desalinean en cuanto hay un hueco en la fila.
+function impColIdx(ref) {
+  let n = 0;
+  for (let i = 0; i < ref.length; i++) {
+    const c = ref.charCodeAt(i);
+    if (c < 65 || c > 90) break;
+    n = n * 26 + (c - 64);
+  }
+  return n - 1;
+}
+
+// Serial de Excel → YYYY-MM-DD. 25569 es el 1970-01-01 en esa escala, y ya
+// absorbe el bug del 29-feb-1900 que Excel arrastra por compatibilidad.
+function impSerialToISO(n) {
+  if (!isFinite(n) || n < 1 || n > 2958465) return null;
+  const d = new Date(Math.round((n - 25569) * 86400000));
+  return isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
+}
+
+async function impParseXlsx(buf) {
+  const files = impUnzip(buf);
+  const wbXml = await impEntry(files, 'xl/workbook.xml');
+  if (!wbXml) throw new Error('El archivo no parece un Excel (.xlsx). Si es un .xls antiguo, guárdalo como .xlsx o .csv.');
+  const P = new DOMParser();
+
+  const rels = {};
+  const relsXml = await impEntry(files, 'xl/_rels/workbook.xml.rels');
+  if (relsXml) P.parseFromString(relsXml, 'application/xml').querySelectorAll('Relationship').forEach(r => {
+    rels[r.getAttribute('Id')] = (r.getAttribute('Target') || '').replace(/^\/?xl\//, '').replace(/^\//, '');
+  });
+
+  const RNS = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  const sheets = [];
+  P.parseFromString(wbXml, 'application/xml').querySelectorAll('sheets > sheet').forEach((sh, i) => {
+    const rid = sh.getAttributeNS(RNS, 'id') || sh.getAttribute('r:id');
+    const target = rels[rid] || ('worksheets/sheet' + (i + 1) + '.xml');
+    sheets.push({ name: sh.getAttribute('name') || ('Hoja ' + (i + 1)), path: 'xl/' + target });
+  });
+  if (!sheets.length) throw new Error('El Excel no tiene ninguna hoja.');
+
+  // Cadenas compartidas: el texto de las celdas no vive en la hoja, sino aquí.
+  const shared = [];
+  const ssXml = await impEntry(files, 'xl/sharedStrings.xml');
+  if (ssXml) P.parseFromString(ssXml, 'application/xml').querySelectorAll('si').forEach(si => {
+    let out = '';
+    // Los <rPh> (guías fonéticas del japonés) también llevan <t> y no son texto visible.
+    si.querySelectorAll('t').forEach(t => { if (!t.closest('rPh')) out += t.textContent; });
+    shared.push(out);
+  });
+
+  // Qué estilos son fechas: en XLSX una fecha es un número, y lo único que la
+  // distingue de un importe es el formato numérico que tenga aplicado.
+  const dateStyles = new Set();
+  const stXml = await impEntry(files, 'xl/styles.xml');
+  if (stXml) {
+    const st = P.parseFromString(stXml, 'application/xml');
+    const custom = {};
+    st.querySelectorAll('numFmt').forEach(f => { custom[f.getAttribute('numFmtId')] = f.getAttribute('formatCode') || ''; });
+    const builtinDates = new Set(['14','15','16','17','18','19','20','21','22','27','30','36','45','46','47','50','57']);
+    const xfs = st.querySelector('cellXfs');
+    if (xfs) Array.from(xfs.children).forEach((xf, i) => {
+      const id = xf.getAttribute('numFmtId') || '0';
+      // Se quitan los literales entre comillas y entre corchetes para que un
+      // formato de moneda tipo "USD"#,##0 no cuele por su "d".
+      const code = (custom[id] || '').replace(/\[[^\]]*\]/g, '').replace(/"[^"]*"/g, '');
+      if (builtinDates.has(id) || /[dy]/i.test(code)) dateStyles.add(i);
+    });
+  }
+
+  const readSheet = async (path) => {
+    const xml = await impEntry(files, path);
+    if (!xml) return [];
+    const rows = [];
+    P.parseFromString(xml, 'application/xml').querySelectorAll('sheetData > row').forEach((r, ri) => {
+      // El numero real de la hoja: Excel no serializa las filas vacias, asi que
+      // el indice del array no coincide con lo que ve el usuario en su Excel.
+      const n = +(r.getAttribute('r') || 0) || (ri + 1);
+      const cells = [];
+      r.querySelectorAll('c').forEach(c => {
+        const ref = c.getAttribute('r') || '';
+        const idx = ref ? impColIdx(ref) : cells.length;
+        const t = c.getAttribute('t');
+        let v = '';
+        if (t === 'inlineStr') {
+          const is = c.querySelector('is');
+          v = is ? is.textContent : '';
+        } else {
+          const vEl = c.querySelector('v');
+          const raw = vEl ? vEl.textContent : '';
+          if (t === 's') v = shared[+raw] !== undefined ? shared[+raw] : '';
+          else if (t === 'b') v = raw === '1' ? 'TRUE' : 'FALSE';
+          else if (t === 'e') v = '';                      // celda en error (#N/A, #REF!…)
+          else if (raw !== '') {
+            const iso = dateStyles.has(+(c.getAttribute('s') || 0)) && /^-?\d+(\.\d+)?$/.test(raw) ? impSerialToISO(+raw) : null;
+            v = iso || raw;
+          }
+        }
+        if (idx >= 0) cells[idx] = String(v).trim();
+      });
+      for (let i = 0; i < cells.length; i++) if (cells[i] === undefined) cells[i] = '';
+      rows.push({ n: n, cells: cells });
+    });
+    return rows;
+  };
+
+  return { sheets, readSheet };
+}
+
+// ── CSV ──────────────────────────────────
+function impParseCsv(text) {
+  text = text.replace(/^﻿/, '');
+  // Excel en locale español exporta con ';'. Se elige por frecuencia en la cabecera.
+  const head = text.split(/\r?\n/)[0] || '';
+  const freq = ch => head.split(ch).length - 1;
+  const delim = (freq('\t') > freq(',') && freq('\t') > freq(';')) ? '\t' : (freq(';') > freq(',') ? ';' : ',');
+  const rows = []; let row = [], cell = '', quoted = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (quoted) {
+      if (c === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else quoted = false; }
+      else cell += c;
+    } else if (c === '"') quoted = true;
+    else if (c === delim) { row.push(cell); cell = ''; }
+    else if (c === '\n') { row.push(cell); rows.push(row); row = []; cell = ''; }
+    else if (c !== '\r') cell += c;
+  }
+  if (cell !== '' || row.length) { row.push(cell); rows.push(row); }
+  return rows.map((r, i) => ({ n: i + 1, cells: r.map(c => c.trim()) }));
+}
+
+// ── Normalización de valores ─────────────
+function impNorm(s) {
+  return String(s === 0 ? '0' : (s || '')).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[_\-.]+/g, ' ').replace(/[^a-z0-9 @]/g, '').replace(/\s+/g, ' ').trim();
+}
+
+function impLevel(v) { const k = impNorm(v); return k ? (IMP_LEVEL[k] || null) : 'medium'; }
+function impStatus(v) { const k = impNorm(v); return k ? (IMP_STATUS[k] || null) : 'todo'; }
+
+function impISO(y, m, d) {
+  const s = String(y).padStart(4, '0') + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+  const dt = new Date(s + 'T00:00:00Z');
+  // Comprobación de ida y vuelta: descarta un 31/02 que Date normalizaría en silencio.
+  return !isNaN(dt.getTime()) && dt.toISOString().slice(0, 10) === s ? s : null;
+}
+
+function impDate(v) {
+  if (v === null || v === undefined || v === '') return null;
+  const s = String(v).trim();
+  let m = s.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+  if (m) return impISO(m[1], m[2], m[3]);
+  // d/m/a: es el orden de la configuración regional española, que es la que usa
+  // quien va a subir estos ficheros. 03/04/2026 se lee como 3 de abril.
+  m = s.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})$/);
+  if (m) return impISO(m[3].length === 2 ? '20' + m[3] : m[3], m[2], m[1]);
+  if (/^\d+(\.\d+)?$/.test(s)) return impSerialToISO(+s);
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
+}
+
+function impUser(v) {
+  const k = impNorm(v);
+  if (!k) return { id: null };
+  const list = (typeof allUsers !== 'undefined' && allUsers) ? allUsers : [];
+  const hit = list.find(u => impNorm(u.email) === k)
+           || list.find(u => impNorm(u.name) === k)
+           || list.find(u => impNorm(u.email).split('@')[0] === k)
+           || list.find(u => impNorm(u.name).split(' ')[0] === k);
+  return hit ? { id: hit.id, name: hit.name } : { id: null, unknown: String(v).trim() };
+}
+
+// ── Flujo de la interfaz ─────────────────
+function openImport() {
+  impReset();
+  const sel = document.getElementById('imp-project');
+  sel.innerHTML = '<option value="">Sin proyecto</option>';
+  projects.forEach(p => { sel.innerHTML += '<option value="' + p.id + '">' + esc(p.name) + '</option>'; });
+  sel.value = currentProject || '';
+  document.getElementById('import-modal').classList.add('active');
+}
+
+function closeImport() { document.getElementById('import-modal').classList.remove('active'); }
+
+function impReset() {
+  impState = null;
+  document.getElementById('imp-step-file').style.display = '';
+  document.getElementById('imp-step-map').style.display = 'none';
+  document.getElementById('imp-back').style.display = 'none';
+  const go = document.getElementById('imp-go');
+  go.disabled = true; go.textContent = 'Importar';
+  document.getElementById('imp-file').value = '';
+  document.getElementById('imp-notes').innerHTML = '';
+}
+
+(function impWireDrop() {
+  const drop = document.getElementById('imp-drop');
+  if (!drop) return;
+  ['dragenter', 'dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+  ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
+  drop.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) impPickFile(f); });
+})();
+
+async function impPickFile(file) {
+  if (!file) return;
+  try {
+    let sheets, readSheet;
+    if (/\.(csv|txt|tsv)$/i.test(file.name)) {
+      const rows = impParseCsv(await file.text());
+      sheets = [{ name: file.name, path: null }];
+      readSheet = async () => rows;
+    } else {
+      const parsed = await impParseXlsx(await file.arrayBuffer());
+      sheets = parsed.sheets;
+      readSheet = parsed.readSheet;
+    }
+    impState = { fileName: file.name, sheets, readSheet, sheetIdx: 0, rows: [], headers: [], map: {} };
+
+    const ssel = document.getElementById('imp-sheet');
+    ssel.innerHTML = '';
+    sheets.forEach((sh, i) => { ssel.innerHTML += '<option value="' + i + '">' + esc(sh.name) + '</option>'; });
+    document.getElementById('imp-sheet-wrap').style.display = sheets.length > 1 ? '' : 'none';
+    document.getElementById('imp-file-name').textContent = file.name;
+    document.getElementById('imp-step-file').style.display = 'none';
+    document.getElementById('imp-step-map').style.display = '';
+    document.getElementById('imp-back').style.display = '';
+    await impSelectSheet(0);
+  } catch (e) {
+    console.error('import:', e);
+    toast(e.message || 'No se pudo leer el archivo', 'error');
+    impReset();
+  }
+}
+
+async function impSelectSheet(idx) {
+  impState.sheetIdx = +idx;
+  const raw = await impState.readSheet(impState.sheets[+idx].path);
+  // La cabecera es la primera fila con contenido: un Excel real suele traer
+  // titulos o filas en blanco encima. Las de debajo conservan su numero real
+  // para que los avisos hablen de la misma fila que ve el usuario en Excel.
+  const first = raw.findIndex(r => r.cells.some(c => String(c || '').trim() !== ''));
+  impState.headers = first < 0 ? [] : raw[first].cells.map(h => String(h || '').trim());
+  impState.rows = first < 0 ? [] : raw.slice(first + 1);
+  impAutoMap();
+  impRenderMap();
+  impRenderPreview();
+}
+
+function impAutoMap() {
+  const norm = impState.headers.map(impNorm);
+  const used = new Set();
+  impState.map = {};
+  IMP_FIELDS.forEach(f => { impState.map[f.key] = -1; });
+  // Dos pasadas: primero se reparten las coincidencias exactas de TODOS los
+  // campos y solo despues las aproximadas. Si no, un alias corto y goloso como
+  // 'fecha' se queda con "Fecha limite" antes de que 'fecha fin' la reclame.
+  IMP_FIELDS.forEach(f => {
+    const i = norm.findIndex((h, j) => h && !used.has(j) && (h === impNorm(f.label) || f.aliases.indexOf(h) >= 0));
+    if (i >= 0) { impState.map[f.key] = i; used.add(i); }
+  });
+  IMP_FIELDS.forEach(f => {
+    if (impState.map[f.key] >= 0) return;
+    const i = norm.findIndex((h, j) => h && !used.has(j) && f.aliases.some(a => h.indexOf(a) === 0 || a.indexOf(h) === 0));
+    if (i >= 0) { impState.map[f.key] = i; used.add(i); }
+  });
+  // Sin cabecera reconocible, al menos el título sale de la primera columna.
+  if (impState.map.title < 0 && impState.headers.length) impState.map.title = 0;
+}
+
+function impMapFields() {
+  const isAdmin = currentUser && currentUser.role === 'admin';
+  return IMP_FIELDS.filter(f => f.key !== 'assignee' || isAdmin);
+}
+
+function impRenderMap() {
+  const opts = ['<option value="-1">— ninguna —</option>'].concat(
+    impState.headers.map((h, i) => '<option value="' + i + '">' + esc(h || ('Columna ' + (i + 1))) + '</option>')).join('');
+  const fields = impMapFields();
+  document.getElementById('imp-map').innerHTML = fields.map(f =>
+    '<div' + (f.req ? ' class="req"' : '') + '><label>' + esc(f.label) + '</label>' +
+    '<select onchange="impSetMap(\'' + f.key + '\', this.value)">' + opts + '</select></div>').join('');
+  const sels = document.querySelectorAll('#imp-map select');
+  fields.forEach((f, i) => { sels[i].value = impState.map[f.key]; });
+}
+
+function impSetMap(key, val) { impState.map[key] = +val; impRenderPreview(); }
+
+// Convierte las filas crudas en el payload que espera el servidor y, de paso,
+// recoge todo lo que haya que avisarle al usuario antes de escribir nada.
+function impBuild() {
+  const isAdmin = currentUser && currentUser.role === 'admin';
+  const cell = (r, k) => { const c = impState.map[k]; return (c >= 0 && r.cells[c] !== undefined) ? String(r.cells[c]).trim() : ''; };
+  const tasks = [];
+  const notes = { noTitle: 0, badLevel: new Set(), badStatus: new Set(), badDate: new Set(), unknownUser: new Set() };
+
+  impState.rows.forEach(r => {
+    const title = cell(r, 'title');
+    if (!title) { if (r.cells.some(c => c)) notes.noTitle++; return; }
+    const t = { _row: r.n, title: title, description: cell(r, 'description') };
+
+    const pr = cell(r, 'priority'), cx = cell(r, 'complexity'), st = cell(r, 'status');
+    t.priority = impLevel(pr) || 'medium';   if (pr && !impLevel(pr)) notes.badLevel.add(pr);
+    t.complexity = impLevel(cx) || 'medium'; if (cx && !impLevel(cx)) notes.badLevel.add(cx);
+    t.status = impStatus(st) || 'todo';      if (st && !impStatus(st)) notes.badStatus.add(st);
+
+    ['start_date', 'end_date'].forEach(k => {
+      const v = cell(r, k);
+      t[k] = impDate(v);
+      if (v && !t[k]) notes.badDate.add(v);
+    });
+
+    if (isAdmin) {
+      const u = impUser(cell(r, 'assignee'));
+      t.assignee_id = u.id;
+      t._assignee = u.name || '';
+      if (u.unknown) notes.unknownUser.add(u.unknown);
+    }
+    tasks.push(t);
+  });
+  return { tasks: tasks, notes: notes };
+}
+
+const IMP_LABEL = { low:'Baja', medium:'Media', high:'Alta', todo:'Por hacer', 'in-progress':'En progreso', done:'Completado' };
+
+function impRenderPreview() {
+  const built = impBuild(), tasks = built.tasks, notes = built.notes;
+  const isAdmin = currentUser && currentUser.role === 'admin';
+  const cols = impMapFields().filter(f => f.key === 'title' || impState.map[f.key] >= 0);
+
+  const head = '<tr>' + cols.map(f => '<th>' + esc(f.label) + '</th>').join('') + '</tr>';
+  const body = tasks.slice(0, 8).map(t => '<tr>' + cols.map(f => {
+    let v = f.key === 'assignee' ? (t._assignee || '') : t[f.key];
+    const bad = (f.key === 'assignee' && !t.assignee_id) || (f.key.slice(-5) === '_date' && !v);
+    if (!v) v = f.key === 'assignee' ? '— sin asignar —' : (f.key.slice(-5) === '_date' ? '—' : '');
+    return '<td' + (bad ? ' class="imp-bad"' : '') + '>' + esc(IMP_LABEL[v] !== undefined ? IMP_LABEL[v] : v) + '</td>';
+  }).join('') + '</tr>').join('');
+  document.getElementById('imp-preview').innerHTML = head + (body || '<tr><td>Ninguna fila con título</td></tr>');
+
+  const plural = tasks.length === 1 ? '' : 's';
+  document.getElementById('imp-summary').textContent =
+    tasks.length + ' tarea' + plural + ' lista' + plural + ' para importar' + (tasks.length > 8 ? ' (se muestran las 8 primeras)' : '');
+
+  const list = set => Array.from(set).slice(0, 6).map(esc).join(', ') + (set.size > 6 ? '…' : '');
+  const msgs = [];
+  if (tasks.length > IMP_MAX) msgs.push('❌ Son ' + tasks.length + ' tareas y el máximo por importación es ' + IMP_MAX + '. Divide el archivo.');
+  if (notes.noTitle) msgs.push('⚠️ ' + notes.noTitle + ' fila(s) sin título: se omitirán.');
+  if (notes.unknownUser.size) msgs.push('⚠️ Sin usuario en TaskFlow (quedan sin asignar): ' + list(notes.unknownUser));
+  if (notes.badLevel.size) msgs.push('⚠️ Prioridad/complejidad no reconocida (queda en Media): ' + list(notes.badLevel));
+  if (notes.badStatus.size) msgs.push('⚠️ Estado no reconocido (queda en Por hacer): ' + list(notes.badStatus));
+  if (notes.badDate.size) msgs.push('⚠️ Fecha ilegible (queda vacía): ' + list(notes.badDate));
+  if (impState.map.start_date >= 0 || impState.map.end_date >= 0) msgs.push('ℹ️ Las fechas tipo 03/04/2026 se leen como día/mes/año.');
+  if (!isAdmin) msgs.push('ℹ️ Las tareas se te asignarán a ti: solo un admin puede asignar a otros.');
+  document.getElementById('imp-notes').innerHTML = msgs.map(m => '<div>' + m + '</div>').join('');
+
+  const go = document.getElementById('imp-go');
+  go.disabled = !tasks.length || tasks.length > IMP_MAX;
+  go.textContent = tasks.length ? 'Importar ' + tasks.length + ' tarea' + plural : 'Importar';
+}
+
+async function impRun() {
+  const go = document.getElementById('imp-go');
+  const tasks = impBuild().tasks;
+  if (!tasks.length) return;
+  go.disabled = true; go.textContent = 'Importando…';
+  try {
+    const res = await api('/tasks/import', {
+      method: 'POST',
+      body: { project_id: document.getElementById('imp-project').value || null, tasks: tasks }
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { toast(data.error || 'Error al importar', 'error'); impRenderPreview(); return; }
+    closeImport();
+    loadTasks(); loadProjects();
+    const p = data.inserted === 1 ? '' : 's';
+    toast(data.inserted + ' tarea' + p + ' importada' + p + (data.skipped ? ' · ' + data.skipped + ' omitida(s)' : ''));
+  } catch (e) {
+    console.error('import:', e);
+    toast('Error de red al importar', 'error');
+    impRenderPreview();
+  }
+}
+
+function impDownloadTemplate() {
+  const rows = [
+    ['Titulo', 'Descripcion', 'Prioridad', 'Complejidad', 'Estado', 'Asignado a', 'Fecha inicio', 'Fecha fin'],
+    ['Migrar el login a JWT', 'Reemplazar las sesiones por tokens', 'Alta', 'Media', 'Por hacer', 'admin@taskflow.local', '2026-09-05', '2026-09-12'],
+    ['Revisar los textos de la home', '', 'Baja', 'Baja', 'En progreso', '', '', '2026-09-30']
+  ];
+  // BOM y ';' para que Excel en español lo abra ya separado en columnas.
+  const csv = '﻿' + rows.map(r => r.map(c => '"' + String(c).replace(/"/g, '""') + '"').join(';')).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = 'plantilla-tareas-taskflow.csv';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
 
 // ── Utils ──────────────────────────────
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
