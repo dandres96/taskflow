@@ -200,7 +200,6 @@ header h1 span { color:var(--accent); }
       <div class="form-group"><label>Contrasena</label><input type="password" id="login-password" required></div>
       <button type="submit" class="btn btn-primary btn-block">Entrar</button>
     </form>
-    <p style="font-size:12px;color:var(--muted);margin-top:16px;text-align:center;">admin@taskflow.local / admin123</p>
   </div>
 </div>
 
@@ -413,8 +412,8 @@ header h1 span { color:var(--accent); }
     <h2>👤 Mi Perfil</h2>
     <form id="profile-form">
       <div class="form-group"><label>Nombre</label><input type="text" id="profile-name" required></div>
-      <div class="form-group"><label>Email</label><input type="email" id="profile-email" disabled style="opacity:.6;">
-        <div style="font-size:10px;color:var(--muted);margin-top:2px;">El email no se puede modificar</div></div>
+      <div class="form-group"><label>Email</label><input type="email" id="profile-email" required>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px;">Es el correo con el que entras a TaskFlow</div></div>
       <div class="form-group"><label>Contrasena actual</label><input type="password" id="profile-current-password" placeholder="Requerida para guardar cambios" required></div>
       <div class="form-group"><label>Nueva contrasena</label><input type="password" id="profile-new-password" placeholder="Dejar vacio para no cambiar"></div>
       <div class="modal-actions">
@@ -828,16 +827,20 @@ document.getElementById('profile-form').addEventListener('submit', async (e) => 
   e.preventDefault();
   const body = {
     name: document.getElementById('profile-name').value,
+    email: document.getElementById('profile-email').value,
     current_password: document.getElementById('profile-current-password').value,
     new_password: document.getElementById('profile-new-password').value || undefined
   };
   const res = await api('/me', { method:'PUT', body });
   if (res.ok) {
     const d = await res.json();
+    const cambioAcceso = d.user.email !== currentUser.email || body.new_password;
     currentUser = d.user;
     document.getElementById('current-user').textContent = currentUser.name;
     closeProfile();
-    toast('Perfil actualizado');
+    // El token sigue siendo valido (va por id), pero si han cambiado las
+    // credenciales conviene decirlo: la proxima vez se entra con las nuevas.
+    toast(cambioAcceso ? 'Perfil actualizado. Usa los datos nuevos la proxima vez que entres.' : 'Perfil actualizado');
   } else {
     const err = await res.json();
     toast(err.error || 'Error', 'error');

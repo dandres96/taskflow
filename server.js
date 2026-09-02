@@ -273,6 +273,10 @@ app.post('/api/login', (req, res) => {
   const user = qget('SELECT * FROM users WHERE email = ?', [email]);
   if (!user || !bcrypt.compareSync(password, user.password))
     return res.status(401).json({ error: 'Credenciales invalidas' });
+  // Eliminar un usuario solo le pone role='trash' y hasta ahora eso no impedia
+  // entrar: la cuenta "borrada" seguia autenticando y su token pasaba auth() sin
+  // problema. Se comprueba aqui para que eliminar signifique de verdad revocar.
+  if (user.role === 'trash') return res.status(401).json({ error: 'Credenciales invalidas' });
   const token = jwt.sign({ id: user.id, name: user.name, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
   res.json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
 });
@@ -282,16 +286,26 @@ app.get('/api/me', auth, (req, res) => {
 });
 
 app.put('/api/me', auth, (req, res) => {
-  const { name, current_password, new_password } = req.body;
+  const { name, email, current_password, new_password } = req.body;
   const user = qget('SELECT * FROM users WHERE id = ?', [req.user.id]);
   if (!user) return res.status(404).json({ error: 'No encontrado' });
-  
+
   // Validate current password
   if (!current_password || !bcrypt.compareSync(current_password, user.password)) {
     return res.status(400).json({ error: 'Contrasena actual incorrecta' });
   }
-  
+
   if (name) qrun('UPDATE users SET name = ? WHERE id = ?', [name, req.user.id]);
+  // El correo es la credencial con la que se entra, asi que se valida el formato
+  // y que no lo tenga ya otra cuenta (la columna es UNIQUE y el INSERT reventaria
+  // con un error crudo de SQLite).
+  if (email && email !== user.email) {
+    const clean = String(email).trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean)) return res.status(400).json({ error: 'Email invalido' });
+    if (qget('SELECT id FROM users WHERE lower(email) = ? AND id != ?', [clean, req.user.id]))
+      return res.status(400).json({ error: 'Ese email ya esta en uso' });
+    qrun('UPDATE users SET email = ? WHERE id = ?', [clean, req.user.id]);
+  }
   if (new_password && new_password.length >= 3) {
     const hash = bcrypt.hashSync(new_password, 10);
     qrun('UPDATE users SET password = ? WHERE id = ?', [hash, req.user.id]);
