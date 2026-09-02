@@ -74,9 +74,12 @@ body { font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-seri
 .login-box p { color:var(--muted); margin-bottom:24px; }
 .form-group { margin-bottom:16px; }
 .form-group label { display:block; margin-bottom:6px; font-size:14px; color:var(--muted); }
-.form-group input, .form-group select, .form-group textarea { width:100%; padding:10px 12px; background:var(--bg); border:1px solid var(--border); border-radius:8px; color:var(--text); font-size:14px; }
-.form-group textarea { resize:vertical; min-height:80px; }
-.form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline:none; border-color:var(--accent); }
+/* font:inherit — sin esto los input/textarea/date usan la fuente por defecto del
+   navegador y salen en monoespaciada, que desentona con el resto de la app. */
+.form-group input, .form-group select, .form-group textarea { width:100%; padding:10px 12px; background:var(--bg); border:1px solid var(--border); border-radius:8px; color:var(--text); font-size:14px; font-family:inherit; }
+.form-group textarea { resize:vertical; min-height:80px; line-height:1.5; }
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(99,102,241,.15); }
+.form-group input::placeholder, .form-group textarea::placeholder { color:var(--muted); opacity:.7; }
 .btn { padding:10px 20px; border-radius:8px; border:none; cursor:pointer; font-size:14px; font-weight:500; transition:all .2s; }
 .btn-primary { background:var(--accent); color:white; }
 .btn-primary:hover { background:#5558e6; }
@@ -166,6 +169,46 @@ header h1 span { color:var(--accent); }
 .comment-text { font-size:13px; margin-top:2px; overflow-wrap:anywhere; }
 .comment-time { font-size:10px; color:var(--muted); }
 
+/* ── Modal de tarea ──────────────────────
+   Cabecera y barra de acciones fijas, con el scroll solo en el cuerpo: antes el
+   modal entero hacia scroll y "Guardar" quedaba a mitad de camino, con los
+   comentarios por debajo. En movil ni siquiera se veia sin desplazarse. */
+.modal-task { display:flex; flex-direction:column; padding:0; max-width:600px; }
+.modal-head { display:flex; align-items:flex-start; gap:12px; padding:20px 24px 14px; border-bottom:1px solid var(--border); }
+.modal-head h2 { flex:1; margin:0; font-size:17px; min-width:0; }
+.modal-close { flex:0 0 auto; width:30px; height:30px; display:flex; align-items:center; justify-content:center; background:transparent; border:none; border-radius:8px; color:var(--muted); font-size:22px; line-height:1; cursor:pointer; transition:background .15s, color .15s; }
+.modal-close:hover { background:var(--bg); color:var(--text); }
+.modal-body { flex:1 1 auto; overflow-y:auto; overflow-x:hidden; padding:20px 24px; }
+.modal-body .form-group:last-child { margin-bottom:0; }
+.modal-foot { display:flex; align-items:center; gap:8px; padding:14px 24px; border-top:1px solid var(--border); background:var(--card); border-radius:0 0 12px 12px; flex-wrap:wrap; }
+.modal-foot .spacer { flex:1; }
+/* Eliminar en fantasma: en solido competia visualmente con Guardar, que es la
+   accion que se busca el 99% de las veces. */
+.btn-ghost-danger { background:transparent; border:1px solid rgba(239,68,68,.4); color:var(--red); }
+.btn-ghost-danger:hover { background:rgba(239,68,68,.12); border-color:var(--red); }
+
+/* El titulo es el encabezado de la tarea, no un campo mas */
+#task-title { font-size:16px; font-weight:500; padding:11px 12px; }
+
+.field-hint { font-size:11px; color:var(--muted); margin-top:5px; }
+.form-sep { height:1px; background:var(--border); margin:20px 0; }
+
+/* Comentarios */
+.comments { margin-top:0; border-top:none; padding-top:0; }
+.comments-title { font-size:12px; font-weight:600; letter-spacing:.04em; text-transform:uppercase; color:var(--muted); margin-bottom:12px; }
+.comment { display:flex; gap:10px; padding:0 0 14px; border-bottom:none; }
+.comment:last-of-type { padding-bottom:4px; }
+.comment-av { flex:0 0 28px; width:28px; height:28px; border-radius:50%; background:var(--accent); color:#fff; font-size:10px; font-weight:600; display:flex; align-items:center; justify-content:center; }
+.comment-main { flex:1; min-width:0; background:var(--bg); border:1px solid var(--border); border-radius:10px; border-top-left-radius:3px; padding:9px 12px; }
+.comment-head { display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; margin-bottom:3px; }
+.comment-user { font-size:12px; font-weight:600; color:var(--text); }
+.comment-text { font-size:13px; margin-top:0; line-height:1.5; overflow-wrap:anywhere; white-space:pre-wrap; }
+.comment-time { font-size:10px; color:var(--muted); }
+.comments-empty { font-size:12px; color:var(--muted); padding:2px 0 12px; }
+.comment-form { display:flex; gap:8px; align-items:center; }
+.comment-form input { flex:1; min-width:0; padding:9px 12px; background:var(--bg); border:1px solid var(--border); border-radius:8px; color:var(--text); font-size:13px; font-family:inherit; }
+.comment-form input:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(99,102,241,.15); }
+
 .empty { text-align:center; color:var(--muted); padding:40px 20px; font-size:14px; }
 .toast { position:fixed; bottom:20px; right:20px; background:var(--green); color:black; padding:10px 20px; border-radius:8px; font-size:13px; z-index:200; display:none; }
 .toast.error { background:var(--red); color:white; }
@@ -198,7 +241,7 @@ header h1 span { color:var(--accent); }
   .board { grid-template-columns:1fr; }
   .sidebar { display:none; position:fixed; top:var(--header-h,56px); left:0; bottom:0; width:min(280px,80vw); z-index:50; box-shadow:2px 0 8px rgba(0,0,0,.3); overflow-y:auto; }
   .sidebar.open { display:block; }
-  .form-row { grid-template-columns:1fr; }
+  .form-row { grid-template-columns:1fr; gap:0; }
   .menu-btn { display:inline-flex !important; }
   .user-bar .name, .user-bar .role { display:none; }
   .toolbar select { flex:1 1 140px; }
@@ -207,6 +250,11 @@ header h1 span { color:var(--accent); }
   .container { padding:0 12px; }
   .main { padding:12px 0; }
   .modal { padding:16px; }
+  .modal-task { padding:0; }
+  .modal-head { padding:16px 16px 12px; }
+  .modal-body { padding:16px; }
+  .modal-foot { padding:12px 16px; }
+  .modal-foot .btn { flex:1 1 auto; }
   .modal-overlay { padding:8px; }
   header .container { gap:6px; }
   .user-bar { gap:6px; }
@@ -332,41 +380,51 @@ header h1 span { color:var(--accent); }
 
 <!-- Task Modal -->
 <div class="modal-overlay" id="task-modal">
-  <div class="modal">
-    <h2 id="modal-title">Nueva tarea</h2>
-    <form id="task-form">
-      <input type="hidden" id="task-id">
-      <div class="form-group"><label>Titulo</label><input type="text" id="task-title" required></div>
-      <div class="form-group"><label>Descripcion</label><textarea id="task-desc"></textarea></div>
-      <div class="form-row">
-        <div class="form-group"><label>Prioridad</label><select id="task-priority"><option value="low">Baja</option><option value="medium" selected>Media</option><option value="high">Alta</option></select></div>
-        <div class="form-group"><label>Complejidad</label><select id="task-complexity"><option value="low">Baja</option><option value="medium" selected>Media</option><option value="high">Alta</option></select></div>
+  <div class="modal modal-task">
+    <div class="modal-head">
+      <h2 id="modal-title">Nueva tarea</h2>
+      <button type="button" class="modal-close" onclick="closeModal()" aria-label="Cerrar" title="Cerrar">&times;</button>
+    </div>
+
+    <div class="modal-body">
+      <form id="task-form">
+        <input type="hidden" id="task-id">
+        <div class="form-group"><label for="task-title">T&iacute;tulo</label><input type="text" id="task-title" placeholder="&iquest;Qu&eacute; hay que hacer?" required></div>
+        <div class="form-group"><label for="task-desc">Descripci&oacute;n</label><textarea id="task-desc" placeholder="Detalles, contexto, criterios de aceptaci&oacute;n&hellip;"></textarea></div>
+        <div class="form-row">
+          <div class="form-group"><label for="task-status">Estado</label><select id="task-status"><option value="todo">Por hacer</option><option value="in-progress">En progreso</option><option value="done">Completado</option></select></div>
+          <div class="form-group"><label for="task-project">Proyecto</label><select id="task-project"></select></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label for="task-priority">Prioridad</label><select id="task-priority"><option value="low">Baja</option><option value="medium" selected>Media</option><option value="high">Alta</option></select></div>
+          <div class="form-group"><label for="task-complexity">Complejidad</label><select id="task-complexity"><option value="low">Baja</option><option value="medium" selected>Media</option><option value="high">Alta</option></select></div>
+        </div>
+        <div class="form-group"><label for="task-assignee">Asignado a</label><select id="task-assignee"></select></div>
+        <div class="form-row">
+          <div class="form-group"><label for="task-start">Fecha de inicio</label><input type="date" id="task-start"></div>
+          <div class="form-group"><label for="task-end">Fecha de fin</label><input type="date" id="task-end"><div class="field-hint" id="task-end-hint" style="display:none"></div></div>
+        </div>
+      </form>
+
+      <div class="comments" id="comments-section" style="display:none;">
+        <div class="form-sep"></div>
+        <div class="comments-title">Comentarios</div>
+        <div id="comments-list"></div>
+        <div class="comment-form">
+          <input type="text" id="comment-input" placeholder="Agregar comentario&hellip;">
+          <button type="button" class="btn btn-primary btn-sm" onclick="addComment()">Enviar</button>
+        </div>
       </div>
-      <div class="form-row">
-        <div class="form-group"><label>Estado</label><select id="task-status"><option value="todo">Por hacer</option><option value="in-progress">En progreso</option><option value="done">Completado</option></select></div>
-        <div class="form-group"><label>Proyecto</label><select id="task-project"></select></div>
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label>Asignado a</label><select id="task-assignee"></select></div>
-        <div class="form-group"><label>&nbsp;</label></div>
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label>Fecha inicio</label><input type="date" id="task-start"></div>
-        <div class="form-group"><label>Fecha fin</label><input type="date" id="task-end"></div>
-      </div>
-      <div class="modal-actions">
-        <button type="button" class="btn btn-danger btn-sm" id="btn-delete-task" style="display:none;margin-right:auto;" onclick="deleteTask()">Eliminar</button>
-        <button type="button" class="btn btn-secondary btn-sm" onclick="closeModal()">Cancelar</button>
-        <button type="submit" class="btn btn-primary btn-sm">Guardar</button>
-      </div>
-    </form>
-    <div class="comments" id="comments-section" style="display:none;">
-      <h4 style="font-size:14px;margin-bottom:8px;">Comentarios</h4>
-      <div id="comments-list"></div>
-      <div style="display:flex;gap:6px;margin-top:8px;">
-        <input type="text" id="comment-input" placeholder="Agregar comentario..." style="flex:1;padding:8px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;">
-        <button class="btn btn-primary btn-sm" onclick="addComment()">Enviar</button>
-      </div>
+    </div>
+
+    <div class="modal-foot">
+      <button type="button" class="btn btn-ghost-danger btn-sm" id="btn-delete-task" style="display:none;" onclick="deleteTask()">Eliminar</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn btn-secondary btn-sm" onclick="closeModal()">Cancelar</button>
+      <!-- form="task-form": el boton vive fuera del <form> (la barra es fija) pero
+           sigue enviandolo. Meter los comentarios dentro del form seria peor: su
+           campo de texto acabaria guardando la tarea al pulsar Enter. -->
+      <button type="submit" form="task-form" class="btn btn-primary btn-sm">Guardar</button>
     </div>
   </div>
 </div>
@@ -922,7 +980,10 @@ function openNewTask() {
   document.getElementById('task-end').value = '';
   document.getElementById('btn-delete-task').style.display = 'none';
   document.getElementById('comments-section').style.display = 'none';
+  updateEndHint();
   document.getElementById('task-modal').classList.add('active');
+  document.querySelector('#task-modal .modal-body').scrollTop = 0;
+  setTimeout(() => document.getElementById('task-title').focus(), 50);
 }
 
 async function openTask(t) {
@@ -939,9 +1000,35 @@ async function openTask(t) {
   document.getElementById('task-end').value = t.end_date || '';
   document.getElementById('btn-delete-task').style.display = 'inline-block';
   document.getElementById('comments-section').style.display = 'block';
+  updateEndHint();
   document.getElementById('task-modal').classList.add('active');
+  // Cada tarea se abre desde arriba, no donde quedo el scroll de la anterior.
+  document.querySelector('#task-modal .modal-body').scrollTop = 0;
+  document.getElementById('comments-list').innerHTML = '<div class="comments-empty">Cargando&hellip;</div>';
   loadComments(t.id);
 }
+
+// Bajo la fecha de fin: cuanto queda o cuanto lleva vencida. Es el dato que se
+// mira al abrir una tarea y antes habia que calcularlo de cabeza.
+function updateEndHint() {
+  const hint = document.getElementById('task-end-hint');
+  const v = document.getElementById('task-end').value;
+  const done = document.getElementById('task-status').value === 'done';
+  if (!v) { hint.style.display = 'none'; return; }
+  const today = new Date(); today.setHours(0,0,0,0);
+  const days = Math.round((new Date(v + 'T00:00:00') - today) / 86400000);
+  let txt, color = 'var(--muted)';
+  if (done) txt = 'Completada';
+  else if (days < 0) { txt = 'Vencida hace ' + (-days) + (days === -1 ? ' día' : ' días'); color = 'var(--red)'; }
+  else if (days === 0) { txt = 'Vence hoy'; color = 'var(--amber)'; }
+  else if (days === 1) { txt = 'Vence mañana'; color = 'var(--amber)'; }
+  else txt = 'Faltan ' + days + ' días';
+  hint.textContent = txt;
+  hint.style.color = color;
+  hint.style.display = '';
+}
+document.getElementById('task-end').addEventListener('change', updateEndHint);
+document.getElementById('task-status').addEventListener('change', updateEndHint);
 
 function closeModal() { document.getElementById('task-modal').classList.remove('active'); }
 
@@ -975,12 +1062,44 @@ async function deleteTask() {
 }
 
 // ── Comments ───────────────────────────
+function initials(name) {
+  return String(name||'?').trim().split(/\s+/).map(w => w[0]).join('').substring(0,2).toUpperCase();
+}
+
+// "hace 5 minutos" es mas legible que un timestamp completo en una conversacion;
+// a partir de una semana la fecha concreta vuelve a ser mas util.
+function timeAgo(iso) {
+  const d = new Date(iso.indexOf('T') < 0 ? iso.replace(' ', 'T') + 'Z' : iso);
+  if (isNaN(d.getTime())) return '';
+  const secs = Math.round((Date.now() - d.getTime()) / 1000);
+  if (secs < 60) return 'hace un momento';
+  const mins = Math.round(secs / 60);
+  if (mins < 60) return 'hace ' + mins + ' min';
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) return 'hace ' + hrs + ' h';
+  const days = Math.round(hrs / 24);
+  if (days < 7) return 'hace ' + days + (days === 1 ? ' día' : ' días');
+  return d.toLocaleDateString();
+}
+
 async function loadComments(taskId) {
   const res = await api('/tasks/'+taskId+'/comments'); const comments = await res.json();
   const list = document.getElementById('comments-list');
-  list.innerHTML = comments.length ? '' : '<div class="empty" style="padding:10px;">Sin comentarios</div>';
-  comments.forEach(c => { list.innerHTML += '<div class="comment"><div class="comment-user">'+esc(c.user_name)+'</div><div class="comment-text">'+esc(c.text)+'</div><div class="comment-time">'+new Date(c.created).toLocaleString()+'</div></div>'; });
+  if (!comments.length) { list.innerHTML = '<div class="comments-empty">Todavía no hay comentarios.</div>'; return; }
+  list.innerHTML = comments.map(c =>
+    '<div class="comment">' +
+      '<div class="comment-av" title="'+esc(c.user_name)+'">'+esc(initials(c.user_name))+'</div>' +
+      '<div class="comment-main">' +
+        '<div class="comment-head"><span class="comment-user">'+esc(c.user_name)+'</span>' +
+        '<span class="comment-time" title="'+esc(new Date(c.created.replace(" ","T")+"Z").toLocaleString())+'">'+esc(timeAgo(c.created))+'</span></div>' +
+        '<div class="comment-text">'+esc(c.text)+'</div>' +
+      '</div>' +
+    '</div>').join('');
 }
+
+document.getElementById('comment-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); addComment(); }
+});
 
 async function addComment() {
   const input = document.getElementById('comment-input'); const text = input.value.trim();
