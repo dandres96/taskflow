@@ -5,12 +5,14 @@
 
 echo "[start.sh] Syncing source files from /data/ to /app/..."
 
-# Cloudflare R2 credentials (baked in - rotate from Cloudflare if compromised)
-export R2_ACCOUNT_ID="3b368df3ee1171990226c6a9c88a2813"
-export R2_ACCESS_KEY="fe23529cc663b1dc517ba5c93380eefc"
-export R2_SECRET_KEY="67bf0bf7e0781ea3551d10578974efa88fd644f8dda11af550e566afce01f59d"
-export R2_BUCKET="taskflow-videos"
-export R2_PUBLIC_URL="https://pub-39a33a2f04d14e7faa2f5e49103a6072.r2.dev"
+# Las credenciales de Cloudflare R2 vienen de `fly secrets`, no de aqui: este
+# fichero esta commiteado en un repo publico y las llaves que habia escritas a
+# mano quedaron expuestas en la historia de git. Ver DEPLOY.md.
+#   fly secrets set R2_ACCOUNT_ID=... R2_ACCESS_KEY=... R2_SECRET_KEY=... \
+#     R2_BUCKET=... R2_PUBLIC_URL=... --app taskflow-cwti
+if [ -z "$R2_ACCESS_KEY" ]; then
+  echo "[start.sh] AVISO: R2 sin configurar; la subida de imagenes y videos de tickets quedara deshabilitada."
+fi
 
 # Ensure /data/public exists
 mkdir -p /data/public

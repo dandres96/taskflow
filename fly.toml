@@ -6,8 +6,9 @@ primary_region = "gru"
 
 [env]
   PORT = "3000"
-  JWT_SECRET = "taskflow-prod-secret-2026"
   DB_PATH = "/data/taskflow.db"
+  # JWT_SECRET y las credenciales de R2 van por `fly secrets`, no aqui:
+  # este fichero esta commiteado en un repo publico. Ver DEPLOY.md.
 
 [[services]]
   protocol = "tcp"

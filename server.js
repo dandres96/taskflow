@@ -7,6 +7,15 @@ try { const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3'); glob
 try { const nodemailer = require('nodemailer'); global.nodemailer = nodemailer; } catch(e) { global.nodemailer = null; console.log('nodemailer not installed - emails disabled'); }
 
 const app = express();
+// En Fly (FLY_APP_NAME siempre esta definido alli) el secreto tiene que venir
+// de `fly secrets`. Antes habia un valor por defecto que se usaba en silencio,
+// asi que un despliegue sin el secreto configurado firmaba los tokens con una
+// cadena publica y nadie se enteraba: mejor no arrancar y decir por que.
+if (process.env.FLY_APP_NAME && !process.env.JWT_SECRET) {
+  console.error('FATAL: falta JWT_SECRET. Configuralo con:\n' +
+    '  fly secrets set JWT_SECRET="<cadena larga y aleatoria>" --app ' + process.env.FLY_APP_NAME);
+  process.exit(1);
+}
 const JWT_SECRET = process.env.JWT_SECRET || 'taskflow-dev-secret-change-me';
 const PORT = process.env.PORT || 3000;
 const HOST = '0.0.0.0';

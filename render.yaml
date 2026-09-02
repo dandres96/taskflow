@@ -7,8 +7,9 @@ services:
     envVars:
       - key: PORT
         value: "3000"
+      # Se pide en el panel de Render; no se escribe aqui (repo publico).
       - key: JWT_SECRET
-        value: "taskflow-prod-secret-2026"
+        sync: false
       - key: DB_PATH
         value: "/data/taskflow.db"
     disk:
