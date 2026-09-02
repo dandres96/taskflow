@@ -393,6 +393,21 @@ app.post('/api/projects/:id/remove', auth, (req, res) => {
 });
 
 // ── Task Routes ─────────────────────────────────────
+// Filtros de fecha: acepta start_from/start_to, end_from/end_to y created_from/created_to
+// (YYYY-MM-DD, ambos extremos incluidos). Una tarea sin la fecha que se filtra NO entra:
+// si no tiene fecha de fin, no puede "terminar antes del viernes".
+const DATE_FILTERS = [
+  ['start_from',   't.start_date >= ?'],
+  ['start_to',     't.start_date <= ?'],
+  ['end_from',     't.end_date >= ?'],
+  ['end_to',       't.end_date <= ?'],
+  // `created` es un DATETIME ('2026-09-02 20:10:43'); sin date() un "hasta el 02/09"
+  // dejaria fuera todo lo creado ese mismo dia despues de medianoche.
+  ['created_from', 'date(t.created) >= ?'],
+  ['created_to',   'date(t.created) <= ?']
+];
+const isYMD = v => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
+
 app.get('/api/tasks', auth, (req, res) => {
   const { status, assignee, project } = req.query;
   let sql = `SELECT t.*, u.name as assignee_name, c.name as creator_name, p.name as project_name, p.color as project_color
@@ -406,6 +421,9 @@ app.get('/api/tasks', auth, (req, res) => {
   if (status && status !== 'all') { sql += ' AND t.status = ?'; params.push(status); }
   if (assignee && assignee !== 'all') { sql += ' AND t.assignee_id = ?'; params.push(assignee); }
   if (project && project !== 'all') { sql += ' AND t.project_id = ?'; params.push(project); }
+  for (const [key, cond] of DATE_FILTERS) {
+    if (isYMD(req.query[key])) { sql += ' AND ' + cond; params.push(req.query[key]); }
+  }
   sql += ' ORDER BY t.updated DESC';
   res.json(qall(sql, params));
 });

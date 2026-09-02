@@ -10,6 +10,40 @@
 body { font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; overflow-wrap:break-word; }
 .container { max-width: 1280px; margin: 0 auto; padding: 0 20px; }
 
+/* Conmutador de vista + filtros de fecha */
+.view-switch { display:inline-flex; border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+.view-switch button { padding:8px 12px; background:var(--card); border:none; color:var(--muted); font-size:13px; cursor:pointer; white-space:nowrap; }
+.view-switch button + button { border-left:1px solid var(--border); }
+.view-switch button.active { background:var(--accent); color:#fff; }
+.filter-badge { display:inline-block; margin-left:6px; min-width:16px; padding:0 5px; border-radius:8px; background:var(--accent); color:#fff; font-size:10px; line-height:16px; text-align:center; }
+.date-panel { display:none; background:var(--card); border:1px solid var(--border); border-radius:10px; padding:14px; margin-bottom:16px; }
+.date-panel.open { display:block; }
+.date-rows { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:14px 18px; }
+/* La etiqueta ocupa su propia linea y debajo van "desde -> hasta". Con los tres
+   en la misma linea no caben en una columna estrecha y la fila se parte por
+   donde no debe, dejando la flecha separada de su par de campos. */
+.date-row { display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:6px; min-width:0; }
+.date-row label { grid-column:1 / -1; font-size:12px; color:var(--muted); margin-bottom:2px; }
+.date-row span { color:var(--muted); font-size:11px; }
+.date-row input { width:100%; min-width:0; padding:7px 8px; background:var(--bg); border:1px solid var(--border); border-radius:6px; color:var(--text); font-size:12px; }
+.date-row input:focus { outline:none; border-color:var(--accent); }
+.date-foot { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-top:12px; font-size:11px; color:var(--muted); }
+
+/* Vista de lista */
+.listwrap { border:1px solid var(--border); border-radius:10px; overflow-x:auto; background:var(--card); }
+.tasktable { width:100%; border-collapse:collapse; font-size:13px; }
+.tasktable th, .tasktable td { padding:10px 12px; text-align:left; border-bottom:1px solid var(--border); white-space:nowrap; }
+.tasktable th { font-size:11px; font-weight:500; color:var(--muted); background:var(--bg); position:sticky; top:0; cursor:pointer; user-select:none; }
+.tasktable th:hover { color:var(--text); }
+.tasktable th .arrow { opacity:.5; font-size:9px; }
+.tasktable tbody tr { cursor:pointer; }
+.tasktable tbody tr:hover { background:var(--bg); }
+.tasktable tbody tr:last-child td { border-bottom:none; }
+.tasktable .t-title { white-space:normal; min-width:220px; max-width:420px; overflow-wrap:anywhere; font-weight:500; }
+.tasktable .t-empty { color:var(--muted); }
+.tasktable td.overdue { color:var(--red); }
+.list-empty { padding:32px; text-align:center; color:var(--muted); font-size:13px; }
+
 /* Importador de Excel */
 .imp-drop { border:2px dashed var(--border); border-radius:10px; padding:28px 16px; text-align:center; cursor:pointer; transition:border-color .15s, background .15s; }
 .imp-drop:hover, .imp-drop.over { border-color:var(--accent); background:rgba(99,102,241,.06); }
@@ -182,7 +216,14 @@ header h1 span { color:var(--accent); }
   .toolbar .btn { flex:1 1 100%; }
   .toolbar select { flex:1 1 120px; }
   .toolbar .spacer { display:none; }
-  #task-count { flex:1 1 100%; text-align:right; }
+  /* El conmutador ocupa la fila entera y reparte los dos botones a mitades:
+     si no, "Fechas" y "Tablero/Lista" se pisan en pantallas estrechas. */
+  .view-switch { flex:1 1 100%; }
+  .view-switch button { flex:1 1 50%; }
+  #btn-dates { flex:1 1 100%; }
+  /* .main pierde el padding lateral aqui para que las tarjetas ocupen todo el
+     ancho, asi que el contador necesita el suyo o queda pegado al borde. */
+  #task-count { flex:1 1 100%; text-align:right; padding-right:12px; }
 }
 .menu-btn { display:none; background:var(--border); border:none; color:var(--text); width:36px; height:36px; border-radius:8px; font-size:18px; cursor:pointer; align-items:center; justify-content:center; }
 .overlay-bg { display:none; position:fixed; top:var(--header-h,56px); left:0; right:0; bottom:0; background:rgba(0,0,0,.4); z-index:40; }
@@ -237,10 +278,37 @@ header h1 span { color:var(--accent); }
           <option value="done">Completado</option>
         </select>
         <select id="filter-assignee" onchange="loadTasks()"></select>
+        <button class="btn btn-secondary" id="btn-dates" onclick="toggleDatePanel()" title="Filtrar por fechas">📅 Fechas<span class="filter-badge" id="dates-badge" style="display:none">0</span></button>
+        <div class="view-switch" role="group" aria-label="Vista">
+          <button type="button" id="view-board" class="active" onclick="setView('board')" title="Vista de tablero">▦ Tablero</button>
+          <button type="button" id="view-list" onclick="setView('list')" title="Vista de lista">☰ Lista</button>
+        </div>
         <div class="spacer"></div>
         <span style="font-size:12px;color:var(--muted);" id="task-count"></span>
       </div>
-      <div class="board">
+
+      <div class="date-panel" id="date-panel">
+        <div class="date-rows">
+          <div class="date-row"><label>Fecha de inicio</label>
+            <input type="date" id="f-start-from" onchange="loadTasks()" aria-label="Inicio desde">
+            <span>→</span>
+            <input type="date" id="f-start-to" onchange="loadTasks()" aria-label="Inicio hasta"></div>
+          <div class="date-row"><label>Fecha de fin</label>
+            <input type="date" id="f-end-from" onchange="loadTasks()" aria-label="Fin desde">
+            <span>→</span>
+            <input type="date" id="f-end-to" onchange="loadTasks()" aria-label="Fin hasta"></div>
+          <div class="date-row"><label>Fecha de creación</label>
+            <input type="date" id="f-created-from" onchange="loadTasks()" aria-label="Creada desde">
+            <span>→</span>
+            <input type="date" id="f-created-to" onchange="loadTasks()" aria-label="Creada hasta"></div>
+        </div>
+        <div class="date-foot">
+          <span>Las tareas sin la fecha que filtras no aparecen.</span>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="clearDateFilters()">Limpiar fechas</button>
+        </div>
+      </div>
+
+      <div class="board" id="board-view">
         <div class="col" id="col-todo" ondrop="drop(event,'todo')" ondragover="allowDrop(event)">
           <div class="col-header"><h3><span class="dot dot-todo"></span> Por hacer</h3><span class="col-count" id="count-todo">0</span></div>
           <div id="list-todo"></div>
@@ -253,6 +321,10 @@ header h1 span { color:var(--accent); }
           <div class="col-header"><h3><span class="dot dot-done"></span> Completado</h3><span class="col-count" id="count-done">0</span></div>
           <div id="list-done"></div>
         </div>
+      </div>
+
+      <div class="listview" id="list-view" style="display:none">
+        <div class="listwrap"><table class="tasktable" id="task-table"></table></div>
       </div>
     </div>
   </div>
@@ -513,6 +585,7 @@ function showApp() {
     document.getElementById('filter-assignee').style.display = 'none';
     document.getElementById('task-assignee').parentElement.style.display = 'none';
   }
+  setView(currentView);   // aplica la vista guardada antes de la primera carga
   loadProjects();
   loadTasks();
   loadUsers();
@@ -668,6 +741,18 @@ async function doConfirm() {
 }
 
 // ── Tasks ──────────────────────────────
+// Filtros de fecha: id del input -> parametro de la API.
+const DATE_INPUTS = {
+  'f-start-from': 'start_from', 'f-start-to': 'start_to',
+  'f-end-from': 'end_from', 'f-end-to': 'end_to',
+  'f-created-from': 'created_from', 'f-created-to': 'created_to'
+};
+
+let currentView = localStorage.getItem('taskflow_view') === 'list' ? 'list' : 'board';
+let lastTasks = [];              // lo ultimo que devolvio el servidor, para reordenar y
+                                 // cambiar de vista sin volver a pedirlo
+let listSort = { key: 'updated', dir: 'desc' };
+
 async function loadTasks() {
   try {
     const params = new URLSearchParams();
@@ -676,11 +761,45 @@ async function loadTasks() {
     if (status !== 'all') params.set('status', status);
     if (assignee !== 'all') params.set('assignee', assignee);
     if (currentProject) params.set('project', currentProject);
+    for (const id in DATE_INPUTS) {
+      const v = document.getElementById(id).value;
+      if (v) params.set(DATE_INPUTS[id], v);
+    }
+    updateDatesBadge();
     const res = await api('/tasks?'+params);
     if (!res.ok) { console.error('loadTasks:', res.status); return; }
-    const tasks = await res.json();
-    renderBoard(tasks);
+    lastTasks = await res.json();
+    renderTasks();
   } catch(e) { console.error('loadTasks error:', e); }
+}
+
+function renderTasks() {
+  document.getElementById('board-view').style.display = currentView === 'board' ? '' : 'none';
+  document.getElementById('list-view').style.display = currentView === 'list' ? '' : 'none';
+  if (currentView === 'board') renderBoard(lastTasks); else renderList(lastTasks);
+}
+
+function setView(v) {
+  currentView = v === 'list' ? 'list' : 'board';
+  localStorage.setItem('taskflow_view', currentView);
+  document.getElementById('view-board').classList.toggle('active', currentView === 'board');
+  document.getElementById('view-list').classList.toggle('active', currentView === 'list');
+  renderTasks();
+}
+
+function toggleDatePanel() { document.getElementById('date-panel').classList.toggle('open'); }
+
+function clearDateFilters() {
+  for (const id in DATE_INPUTS) document.getElementById(id).value = '';
+  loadTasks();
+}
+
+function updateDatesBadge() {
+  let n = 0;
+  for (const id in DATE_INPUTS) if (document.getElementById(id).value) n++;
+  const b = document.getElementById('dates-badge');
+  b.textContent = n;
+  b.style.display = n ? '' : 'none';
 }
 
 function renderBoard(tasks) {
@@ -709,6 +828,81 @@ function renderBoard(tasks) {
   });
   ['todo','in-progress','done'].forEach(s => { document.getElementById('count-'+s).textContent = count[s]||0; });
   document.getElementById('task-count').textContent = tasks.length+' tareas';
+}
+
+// ── Vista de lista ─────────────────────
+const LIST_COLS = [
+  { key:'title',       label:'Tarea' },
+  { key:'project_name',label:'Proyecto' },
+  { key:'status',      label:'Estado' },
+  { key:'priority',    label:'Prioridad' },
+  { key:'complexity',  label:'Complejidad' },
+  { key:'assignee_name', label:'Asignado a' },
+  { key:'start_date',  label:'Inicio' },
+  { key:'end_date',    label:'Fin' },
+  { key:'created',     label:'Creada' }
+];
+const LIST_TEXT = { low:'Baja', medium:'Media', high:'Alta',
+  todo:'Por hacer', 'in-progress':'En progreso', done:'Completado' };
+// Prioridad, complejidad y estado tienen un orden propio; alfabeticamente
+// "Alta < Baja < Media" no dice nada util.
+const LIST_RANK = { low:1, medium:2, high:3, todo:1, 'in-progress':2, done:3 };
+
+function listSortBy(key) {
+  listSort = (listSort.key === key)
+    ? { key: key, dir: listSort.dir === 'asc' ? 'desc' : 'asc' }
+    : { key: key, dir: key === 'title' || key === 'project_name' || key === 'assignee_name' ? 'asc' : 'desc' };
+  renderList(lastTasks);
+}
+
+function renderList(tasks) {
+  document.getElementById('task-count').textContent = (tasks ? tasks.length : 0)+' tareas';
+  const table = document.getElementById('task-table');
+  if (!tasks || !tasks.length) {
+    table.innerHTML = '<tbody><tr><td class="list-empty">No hay tareas con estos filtros.</td></tr></tbody>';
+    return;
+  }
+
+  const k = listSort.key, sign = listSort.dir === 'asc' ? 1 : -1;
+  const rows = tasks.slice().sort((a, b) => {
+    let x = a[k], y = b[k];
+    if (LIST_RANK[x] || LIST_RANK[y]) { x = LIST_RANK[x] || 0; y = LIST_RANK[y] || 0; }
+    // Los huecos (sin fecha, sin asignar, sin proyecto) van siempre al final,
+    // se ordene ascendente o descendente: son "no aplica", no un valor pequeno.
+    const ex = x === null || x === undefined || x === '';
+    const ey = y === null || y === undefined || y === '';
+    if (ex || ey) return ex && ey ? 0 : (ex ? 1 : -1);
+    if (typeof x === 'string' && typeof y === 'string') return sign * x.localeCompare(y, 'es');
+    return sign * (x < y ? -1 : x > y ? 1 : 0);
+  });
+
+  const head = '<thead><tr>' + LIST_COLS.map(c =>
+    '<th onclick="listSortBy(\''+c.key+'\')">' + esc(c.label) +
+    (listSort.key === c.key ? ' <span class="arrow">'+(listSort.dir === 'asc' ? '▲' : '▼')+'</span>' : '') +
+    '</th>').join('') + '</tr></thead>';
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  const body = rows.map((t, i) => {
+    const vencida = t.end_date && t.status !== 'done' && new Date(t.end_date) < today;
+    const cell = (c) => {
+      let v = t[c.key];
+      if (c.key === 'created') v = v ? String(v).slice(0, 10) : '';
+      if (c.key === 'title') return '<td class="t-title">' + esc(v) + '</td>';
+      if (c.key === 'project_name' && v)
+        return '<td><span class="proj-tag" style="background:'+(t.project_color||'#6366f1')+'33;color:'+(t.project_color||'#6366f1')+'">'+esc(v)+'</span></td>';
+      if (!v) return '<td class="t-empty">—</td>';
+      const cls = (c.key === 'end_date' && vencida) ? ' class="overdue"' : '';
+      return '<td'+cls+'>' + esc(LIST_TEXT[v] !== undefined ? LIST_TEXT[v] : v) + (c.key === 'end_date' && vencida ? ' (vencida)' : '') + '</td>';
+    };
+    return '<tr data-i="'+i+'">' + LIST_COLS.map(cell).join('') + '</tr>';
+  }).join('');
+
+  table.innerHTML = head + '<tbody>' + body + '</tbody>';
+  // Se enlaza aqui en vez de con onclick en el HTML para no tener que serializar
+  // la tarea entera dentro de un atributo.
+  table.querySelectorAll('tbody tr').forEach(tr => {
+    tr.onclick = () => openTask(rows[+tr.dataset.i]);
+  });
 }
 
 function allowDrop(e) { e.preventDefault(); }
