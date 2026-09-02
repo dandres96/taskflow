@@ -1533,7 +1533,9 @@ async function impRun() {
 function impDownloadTemplate() {
   const rows = [
     ['Titulo', 'Descripcion', 'Prioridad', 'Complejidad', 'Estado', 'Asignado a', 'Fecha inicio', 'Fecha fin'],
-    ['Migrar el login a JWT', 'Reemplazar las sesiones por tokens', 'Alta', 'Media', 'Por hacer', 'admin@taskflow.local', '2026-09-05', '2026-09-12'],
+    // El asignatario del ejemplo se toma de un usuario real para que la plantilla
+    // se pueda importar tal cual; si no hay ninguno, se deja en blanco.
+    ['Migrar el login a JWT', 'Reemplazar las sesiones por tokens', 'Alta', 'Media', 'Por hacer', (allUsers[0] && allUsers[0].email) || '', '2026-09-05', '2026-09-12'],
     ['Revisar los textos de la home', '', 'Baja', 'Baja', 'En progreso', '', '', '2026-09-30']
   ];
   // BOM y ';' para que Excel en español lo abra ya separado en columnas.
